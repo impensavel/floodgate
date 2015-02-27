@@ -36,7 +36,7 @@ class Floodgate
     private static $intervals = [
         200 => 0,  // OK
         420 => 60, // too many reconnects
-        504 => 5,  // server unavailable
+        503 => 5,  // server unavailable
     ];
 
     /**
