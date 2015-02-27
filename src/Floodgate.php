@@ -69,7 +69,7 @@ class Floodgate
      * @access  private
      * @var     int
      */
-    private $attempts = 1;
+    private $attempts = 0;
 
     /**
      * Enable connection persistence
@@ -220,8 +220,8 @@ class Floodgate
 
         $request = $this->http->createRequest($method, $endpoint, $options);
 
-        // back off N seconds, according to each specific HTTP status
-        sleep(static::$intervals[$this->lastStatus] * $this->attempts++);
+        // back off exponentially
+        sleep(static::$intervals[$this->lastStatus] * pow(2, $this->attempts++));
 
         $response = $this->http->send($request);
 
@@ -234,13 +234,14 @@ class Floodgate
         // act according to HTTP status
         switch ($this->lastStatus) {
             case 200: // OK
-                $this->attempts = 1;
+                $this->attempts = 0;
+
                 return $response->getBody();
 
             case 420: // too many reconnects
             case 503: // server unavailable
-                if ($this->attempts > 10) {
-                    $this->persist = false;
+                if ($this->attempts > 6) {
+                    throw new FloodgateException('Reached maximum connection attempts', $this->lastStatus);
                 }
 
                 return false;
