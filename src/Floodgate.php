@@ -178,8 +178,7 @@ class Floodgate
         // (re)set last received data timestamp
         $this->lastReception = time();
 
-        while (! $stream->eof()) {
-            $line = Utils::readline($stream);
+        while (($line = Utils::readline($stream)) !== false) {
 
             if ($this->isStalled()) {
                 break;
