@@ -27,13 +27,13 @@ class Floodgate
     const STREAM_URL = 'https://stream.twitter.com/1.1/statuses/';
 
     /**
-     * HTTP sleep intervals
+     * Back off values for reconnection
      *
      * @static
      * @access  private
      * @var     array
      */
-    private static $intervals = [
+    private static $backOff = [
         200 => 0,  // OK
         420 => 60, // too many reconnects
         503 => 5,  // server unavailable
@@ -72,12 +72,12 @@ class Floodgate
     private $attempts = 0;
 
     /**
-     * Enable connection persistence
+     * Reconnect?
      *
      * @access  private
      * @var     bool
      */
-    private $persist = true;
+    private $reconnect = true;
 
     /**
      * HTTP Client object
@@ -150,9 +150,10 @@ class Floodgate
      * @param   Closure $callback
      * @param   array   $parameters Streaming API parameters
      * @param   string  $method     HTTP method
+     * @throws  FloodgateException
      * @return  void
      */
-    private function loop($endpoint, Closure $callback, array $parameters = [], $method = 'GET')
+    private function consume($endpoint, Closure $callback, array $parameters = [], $method = 'GET')
     {
         do {
             $response = $this->open($endpoint, $parameters, $method);
@@ -161,7 +162,7 @@ class Floodgate
                 $this->processor($callback, $response);
             }
 
-        } while ($this->persist);
+        } while ($this->reconnect);
     }
 
     /**
@@ -170,7 +171,6 @@ class Floodgate
      * @access  private
      * @param   Closure                            $callback
      * @param   \GuzzleHttp\Stream\StreamInterface $stream
-     * @throws  FloodgateException
      * @return  void
      */
     private function processor(Closure $callback, StreamInterface $stream)
@@ -199,6 +199,7 @@ class Floodgate
      * @param   string $endpoint   Streaming API endpoint
      * @param   array  $parameters Streaming API parameters
      * @param   string $method     HTTP method
+     * @throws  FloodgateException
      * @return  \GuzzleHttp\Stream\StreamInterface|bool
      */
     public function open($endpoint, array $parameters = [], $method = 'GET')
@@ -220,7 +221,7 @@ class Floodgate
         $request = $this->http->createRequest($method, $endpoint, $options);
 
         // back off exponentially
-        sleep(static::$intervals[$this->lastStatus] * pow(2, $this->attempts++));
+        sleep(static::$backOff[$this->lastStatus] * pow(2, $this->attempts++));
 
         $response = $this->http->send($request);
 
@@ -245,7 +246,7 @@ class Floodgate
 
                 return false;
 
-            // assume everything else is unrecoverable
+            // everything else should be unrecoverable
             default:
                 throw new FloodgateException($response->getReasonPhrase(), $this->lastStatus);
         }
@@ -262,7 +263,7 @@ class Floodgate
      */
     public function sample(Closure $callback, array $parameters = [])
     {
-        $this->loop('sample.json', $callback, $parameters);
+        $this->consume('sample.json', $callback, $parameters);
     }
 
     /**
@@ -276,7 +277,7 @@ class Floodgate
      */
     public function filter(Closure $callback, array $parameters = [])
     {
-        $this->loop('filter.json', $callback, $parameters, 'POST');
+        $this->consume('filter.json', $callback, $parameters, 'POST');
     }
 
     /**
@@ -290,6 +291,6 @@ class Floodgate
      */
     public function firehose(Closure $callback, array $parameters = [])
     {
-        $this->loop('firehose.json', $callback, $parameters);
+        $this->consume('firehose.json', $callback, $parameters);
     }
 }
