@@ -15,18 +15,69 @@ namespace Impensavel\Floodgate;
 use Closure;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Message\ResponseInterface;
+use GuzzleHttp\Stream\StreamInterface;
 use GuzzleHttp\Stream\Utils;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
 
 class Floodgate
 {
     /**
-     * Twitter Streaming API URLs
+     * Twitter Streaming API URL
      */
-    const STREAM_URL      = 'https://stream.twitter.com/1.1/statuses/';
-    const SITE_STREAM_URL = 'https://sitestream.twitter.com/1.1/';
-    const USER_STREAM_URL = 'https://userstream.twitter.com/1.1/';
+    const STREAM_URL = 'https://stream.twitter.com/1.1/statuses/';
+
+    /**
+     * HTTP sleep intervals
+     *
+     * @static
+     * @access  private
+     * @var     array
+     */
+    private static $intervals = [
+        200 => 0,  // OK
+        420 => 60, // too many reconnects
+        504 => 5,  // server unavailable
+    ];
+
+    /**
+     * Last connection timestamp
+     *
+     * @access  private
+     * @var     int
+     */
+    private $lastConnection = 0;
+
+    /**
+     * Last data received timestamp
+     *
+     * @access  private
+     * @var     int
+     */
+    private $lastReception = 0;
+
+    /**
+     * Last HTTP status
+     *
+     * @access  private
+     * @var     int
+     */
+    private $lastStatus = 200;
+
+    /**
+     * Reconnection attempts
+     *
+     * @access  private
+     * @var     int
+     */
+    private $attempts = 1;
+
+    /**
+     * Enable connection persistence
+     *
+     * @access  private
+     * @var     bool
+     */
+    private $persist = true;
 
     /**
      * HTTP Client object
@@ -78,31 +129,67 @@ class Floodgate
     }
 
     /**
-     * Response processor
+     * Check if the connection is stalled
      *
      * @access  private
-     * @param   Closure                               $callback
-     * @param   \GuzzleHttp\Message\ResponseInterface $response
+     * @return  bool
+     */
+    private function isStalled()
+    {
+        // Twitter considers a connection stalled
+        // when 90 seconds (3 cycles) have passed
+        // since the last data was received
+        return (time() - $this->lastReception) > 90;
+    }
+
+    /**
+     * Consumption loop
+     *
+     * @access  private
+     * @param   string  $endpoint   Streaming API endpoint
+     * @param   Closure $callback
+     * @param   array   $parameters Streaming API parameters
+     * @param   string  $method     HTTP method
+     * @return  void
+     */
+    private function loop($endpoint, Closure $callback, array $parameters = [], $method = 'GET')
+    {
+        do {
+            $response = $this->open($endpoint, $parameters, $method);
+
+            if ($response) {
+                $this->processor($callback, $response);
+            }
+
+        } while ($this->persist);
+    }
+
+    /**
+     * Stream processor
+     *
+     * @access  private
+     * @param   Closure                            $callback
+     * @param   \GuzzleHttp\Stream\StreamInterface $stream
      * @throws  FloodgateException
      * @return  void
      */
-    private function processor(Closure $callback, ResponseInterface $response)
+    private function processor(Closure $callback, StreamInterface $stream)
     {
-        $status = $response->getStatusCode();
+        // (re)set last received data timestamp
+        $this->lastReception = time();
 
-        if ($status != 200) {
-            throw new FloodgateException($response->getReasonPhrase(), $status);
-        }
-
-        $stream = $response->getBody();
-
-        // read stream continuously and pass each line to the callback
         while (! $stream->eof()) {
             $line = Utils::readline($stream);
 
-            $data = json_decode($line);
+            if ($this->isStalled()) {
+                break;
+            }
 
-            $callback($data);
+            // pass each line to the callback
+            $callback(json_decode($line));
+
+            // update last data received timestamp
+            $this->lastReception = time();
         }
     }
 
@@ -113,7 +200,7 @@ class Floodgate
      * @param   string $endpoint   Streaming API endpoint
      * @param   array  $parameters Streaming API parameters
      * @param   string $method     HTTP method
-     * @return  \GuzzleHttp\Message\ResponseInterface
+     * @return  \GuzzleHttp\Stream\StreamInterface|bool
      */
     public function open($endpoint, array $parameters = [], $method = 'GET')
     {
@@ -123,16 +210,45 @@ class Floodgate
             'auth'       => 'oauth',
         ];
 
-        // set option name according to the HTTP method
+        // set option name according to the HTTP method in use
         $name = (strtolower($method) == 'post') ? 'body' : 'query';
 
+        // set endpoint parameters
         foreach ($parameters as $field => $value) {
             $options[$name][$field] = is_array($value) ? implode(',', $value) : $value;
         }
 
-        $response = $this->http->createRequest($method, $endpoint, $options);
+        $request = $this->http->createRequest($method, $endpoint, $options);
 
-        return $this->http->send($response);
+        // back off N seconds, according to each specific HTTP status
+        sleep(static::$intervals[$this->lastStatus] * $this->attempts++);
+
+        $response = $this->http->send($request);
+
+        // save latest HTTP status code
+        $this->lastStatus = $response->getStatusCode();
+
+        // (re)set last connection timestamp
+        $this->lastConnection = time();
+
+        // act according to HTTP status
+        switch ($this->lastStatus) {
+            case 200: // OK
+                $this->attempts = 1;
+                return $response->getBody();
+
+            case 420: // too many reconnects
+            case 503: // server unavailable
+                if ($this->attempts > 10) {
+                    $this->persist = false;
+                }
+
+                return false;
+
+            // assume everything else is unrecoverable
+            default:
+                throw new FloodgateException($response->getReasonPhrase(), $this->lastStatus);
+        }
     }
 
     /**
@@ -146,9 +262,7 @@ class Floodgate
      */
     public function sample(Closure $callback, array $parameters = [])
     {
-        $response = $this->open('filter.json', $parameters);
-
-        $this->processor($callback, $response);
+        $this->loop('sample.json', $callback, $parameters);
     }
 
     /**
@@ -162,9 +276,7 @@ class Floodgate
      */
     public function filter(Closure $callback, array $parameters = [])
     {
-        $response = $this->open('filter.json', $parameters, 'POST');
-
-        $this->processor($callback, $response);
+        $this->loop('filter.json', $callback, $parameters, 'POST');
     }
 
     /**
@@ -178,8 +290,6 @@ class Floodgate
      */
     public function firehose(Closure $callback, array $parameters = [])
     {
-        $response = $this->open('firehose.json', $parameters);
-
-        $this->processor($callback, $response);
+        $this->loop('firehose.json', $callback, $parameters);
     }
 }
