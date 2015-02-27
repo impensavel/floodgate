@@ -56,10 +56,10 @@ class Floodgate
      *
      * @static
      * @access  public
-     * @param   array  $config Floodgate configuration
+     * @param   array  $config Twitter OAuth configuration
      * @return  Floodgate
      */
-    public static function create($config = [])
+    public static function create(array $config)
     {
         $config = array_merge([
             'consumer_key'    => '',
