@@ -19,7 +19,7 @@ use GuzzleHttp\Stream\StreamInterface;
 use GuzzleHttp\Stream\Utils;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
 
-abstract class Floodgate
+abstract class Floodgate implements FloodgateInterface
 {
     /**
      * Twitter Streaming API URL
@@ -265,14 +265,6 @@ abstract class Floodgate
                 throw new FloodgateException($response->getReasonPhrase(), $this->lastStatus);
         }
     }
-
-    /**
-     * Get the Twitter Streaming API parameters
-     *
-     * @access  public
-     * @return  array
-     */
-    abstract public function getParameters();
 
     /**
      * Streaming API Sample endpoint
