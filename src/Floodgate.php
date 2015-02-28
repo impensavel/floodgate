@@ -69,14 +69,6 @@ abstract class Floodgate implements FloodgateInterface
     protected $attempts = 0;
 
     /**
-     * Reconnect?
-     *
-     * @access  protected
-     * @var     bool
-     */
-    protected $reconnect = true;
-
-    /**
      * Streaming API parameters
      *
      * @access  protected
@@ -175,13 +167,13 @@ abstract class Floodgate implements FloodgateInterface
     {
         $this->parameters = $this->getParameters();
 
-        do {
+        while (true) {
             $response = $this->open($endpoint, $method);
 
             if ($response) {
                 $this->processor($callback, $response);
             }
-        } while ($this->reconnect);
+        }
     }
 
     /**
@@ -264,12 +256,7 @@ abstract class Floodgate implements FloodgateInterface
     }
 
     /**
-     * Streaming API Sample endpoint
-     *
-     * @access  public
-     * @param   Closure $callback
-     * @throws  FloodgateException
-     * @return  void
+     * {@inheritdoc}
      */
     public function sample(Closure $callback)
     {
@@ -277,12 +264,7 @@ abstract class Floodgate implements FloodgateInterface
     }
 
     /**
-     * Streaming API Filter endpoint
-     *
-     * @access  public
-     * @param   Closure $callback
-     * @throws  FloodgateException
-     * @return  void
+     * {@inheritdoc}
      */
     public function filter(Closure $callback)
     {
@@ -290,12 +272,7 @@ abstract class Floodgate implements FloodgateInterface
     }
 
     /**
-     * Streaming API Firehose endpoint
-     *
-     * @access  public
-     * @param   Closure $callback  Callback to
-     * @throws  FloodgateException
-     * @return  void
+     * {@inheritdoc}
      */
     public function firehose(Closure $callback)
     {

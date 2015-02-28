@@ -12,6 +12,8 @@
 
 namespace Impensavel\Floodgate;
 
+use Closure;
+
 interface FloodgateInterface
 {
     /**
@@ -21,4 +23,34 @@ interface FloodgateInterface
      * @return  array
      */
     public function getParameters();
+
+    /**
+     * Consume Streaming API Sample endpoint
+     *
+     * @access  public
+     * @param   Closure $callback
+     * @throws  FloodgateException
+     * @return  void
+     */
+    public function sample(Closure $callback);
+
+    /**
+     * Consume Streaming API Filter endpoint
+     *
+     * @access  public
+     * @param   Closure $callback
+     * @throws  FloodgateException
+     * @return  void
+     */
+    public function filter(Closure $callback);
+
+    /**
+     * Consume Streaming API Firehose endpoint
+     *
+     * @access  public
+     * @param   Closure $callback  Callback to
+     * @throws  FloodgateException
+     * @return  void
+     */
+    public function firehose(Closure $callback);
 }
