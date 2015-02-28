@@ -129,6 +129,11 @@ abstract class Floodgate
 
         $http = new Client([
             'base_url' => static::STREAM_URL,
+            'defaults' => [
+                'headers' => [
+                    'User-Agent' => 'Floodgate/1.0',
+                ],
+            ],
         ]);
 
         $oauth = new Oauth1($config);
