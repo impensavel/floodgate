@@ -19,7 +19,7 @@ use GuzzleHttp\Stream\StreamInterface;
 use GuzzleHttp\Stream\Utils;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
 
-class Floodgate
+abstract class Floodgate
 {
     /**
      * Twitter Streaming API URL
@@ -30,10 +30,10 @@ class Floodgate
      * Back off values for reconnection
      *
      * @static
-     * @access  private
+     * @access  protected
      * @var     array
      */
-    private static $backOff = [
+    protected static $backOff = [
         200 => 0,  // OK
         420 => 60, // too many reconnects
         503 => 5,  // server unavailable
@@ -42,50 +42,58 @@ class Floodgate
     /**
      * Last connection timestamp
      *
-     * @access  private
+     * @access  protected
      * @var     int
      */
-    private $lastConnection = 0;
+    protected $lastConnection = 0;
 
     /**
      * Last data received timestamp
      *
-     * @access  private
+     * @access  protected
      * @var     int
      */
-    private $lastReception = 0;
+    protected $lastReception = 0;
 
     /**
      * Last HTTP status
      *
-     * @access  private
+     * @access  protected
      * @var     int
      */
-    private $lastStatus = 200;
+    protected $lastStatus = 200;
 
     /**
      * Reconnection attempts
      *
-     * @access  private
+     * @access  protected
      * @var     int
      */
-    private $attempts = 0;
+    protected $attempts = 0;
 
     /**
      * Reconnect?
      *
-     * @access  private
+     * @access  protected
      * @var     bool
      */
-    private $reconnect = true;
+    protected $reconnect = true;
+
+    /**
+     * Streaming API parameters
+     *
+     * @access  protected
+     * @var     array
+     */
+    protected $parameters = [];
 
     /**
      * HTTP Client object
      *
-     * @access  private
+     * @access  protected
      * @var     \GuzzleHttp\Client
      */
-    private $http;
+    protected $http;
 
     /**
      * Floodgate constructor
@@ -131,10 +139,10 @@ class Floodgate
     /**
      * Check if the connection is stalled
      *
-     * @access  private
+     * @access  protected
      * @return  bool
      */
-    private function isStalled()
+    protected function isStalled()
     {
         // Twitter considers a connection stalled
         // when 90 seconds (3 cycles) have passed
@@ -145,18 +153,19 @@ class Floodgate
     /**
      * Consumption loop
      *
-     * @access  private
+     * @access  protected
      * @param   string  $endpoint   Streaming API endpoint
      * @param   Closure $callback
-     * @param   array   $parameters Streaming API parameters
      * @param   string  $method     HTTP method
      * @throws  FloodgateException
      * @return  void
      */
-    private function consume($endpoint, Closure $callback, array $parameters = [], $method = 'GET')
+    protected function consume($endpoint, Closure $callback, $method = 'GET')
     {
         do {
-            $response = $this->open($endpoint, $parameters, $method);
+            $this->parameters = $this->getParameters();
+
+            $response = $this->open($endpoint, $method);
 
             if ($response) {
                 $this->processor($callback, $response);
@@ -168,12 +177,12 @@ class Floodgate
     /**
      * Stream processor
      *
-     * @access  private
+     * @access  protected
      * @param   Closure                            $callback
      * @param   \GuzzleHttp\Stream\StreamInterface $stream
      * @return  void
      */
-    private function processor(Closure $callback, StreamInterface $stream)
+    protected function processor(Closure $callback, StreamInterface $stream)
     {
         // (re)set last received data timestamp
         $this->lastReception = time();
@@ -195,14 +204,13 @@ class Floodgate
     /**
      * Open the Floodgate
      *
-     * @access  public
+     * @access  protected
      * @param   string $endpoint   Streaming API endpoint
-     * @param   array  $parameters Streaming API parameters
      * @param   string $method     HTTP method
      * @throws  FloodgateException
      * @return  \GuzzleHttp\Stream\StreamInterface|bool
      */
-    public function open($endpoint, array $parameters = [], $method = 'GET')
+    protected function open($endpoint, $method = 'GET')
     {
         $options = [
             'exceptions' => false,
@@ -214,7 +222,7 @@ class Floodgate
         $name = (strtolower($method) == 'post') ? 'body' : 'query';
 
         // set endpoint parameters
-        foreach ($parameters as $field => $value) {
+        foreach ($this->parameters as $field => $value) {
             $options[$name][$field] = is_array($value) ? implode(',', $value) : $value;
         }
 
@@ -253,17 +261,24 @@ class Floodgate
     }
 
     /**
+     * Get the Twitter Streaming API parameters
+     *
+     * @access  public
+     * @return  array
+     */
+    abstract public function getParameters();
+
+    /**
      * Streaming API Sample endpoint
      *
      * @access  public
      * @param   Closure $callback
-     * @param   array   $parameters Streaming API parameters
      * @throws  FloodgateException
      * @return  void
      */
-    public function sample(Closure $callback, array $parameters = [])
+    public function sample(Closure $callback)
     {
-        $this->consume('sample.json', $callback, $parameters);
+        $this->consume('sample.json', $callback);
     }
 
     /**
@@ -271,26 +286,24 @@ class Floodgate
      *
      * @access  public
      * @param   Closure $callback
-     * @param   array   $parameters Streaming API parameters
      * @throws  FloodgateException
      * @return  void
      */
-    public function filter(Closure $callback, array $parameters = [])
+    public function filter(Closure $callback)
     {
-        $this->consume('filter.json', $callback, $parameters, 'POST');
+        $this->consume('filter.json', $callback, 'POST');
     }
 
     /**
      * Streaming API Firehose endpoint
      *
      * @access  public
-     * @param   Closure $callback   Callback to
-     * @param   array   $parameters Streaming API parameters
+     * @param   Closure $callback  Callback to
      * @throws  FloodgateException
      * @return  void
      */
-    public function firehose(Closure $callback, array $parameters = [])
+    public function firehose(Closure $callback)
     {
-        $this->consume('firehose.json', $callback, $parameters);
+        $this->consume('firehose.json', $callback);
     }
 }
