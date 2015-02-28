@@ -26,41 +26,52 @@ require 'vendor/autoload.php';
 use Impensavel\Floodgate\Floodgate;
 use Impensavel\Floodgate\FloodgateException;
 
+class MyFloodgate extends Floodgate
+{
+   /**
+    * {@inheritdoc}
+    */
+    public function getParameters()
+    {
+        return [
+            'track' => 'php',
+        ];
+    }
+}
+
 try {
-	// Twitter OAuth configuration
-	$config = [
-		'consumer_key'    => 'OADYKJgKogkkYtzdIKLZEq77Z',
-		'consumer_secret' => 'Z0mImnDYzH3Tbe4eyQLQEA0lyzXsWFmmZsQTAYHtBrSBX04bKK',
-		'token'           => '456786512-D7pjlQ3U74wd40zXHRHa495wl00ogOyhJu9iqEhz',
-		'token_secret'    => 'EUyz6MawvBlabLAb2gY6fgyTagtMMYny7GmzKfulGo3Di',
-	];
+    // Twitter OAuth configuration
+    $config = [
+        'consumer_key'    => 'OADYKJgKogkkYtzdIKLZEq77Z',
+        'consumer_secret' => 'Z0mImnDYzH3Tbe4eyQLQEA0lyzXsWFmmZsQTAYHtBrSBX04bKK',
+        'token'           => '456786512-D4MmYQ3U74wd40zXHRHa495wl00ogOyhJu9iqEhz',
+        'token_secret'    => 'EUyz6MawvBlabLAb2gY6fgyTagtMMYny7GmzKfulGo3Di',
+    ];
 
-	// create a Floodgate instance
-	$fg = Floodgate::create($config);
+    // create a MyFloodgate instance
+    $fg = MyFloodgate::create($config);
 
-	// call Twitter Streaming API filter endpoint
-	$fg->filter(function ($data)
-	{
-		// dump each line from the stream
-		// $data may be a plain old PHP object or null
-		// null means a Keep Alive (blank line)
-		var_dump($data);
-	}, [
-		'track' => 'php'
-	]);
+    // consume the Twitter Streaming API filter endpoint
+    $fg->filter(function ($data)
+    {
+        // dump each line from the stream
+        // $data may be a plain old PHP object or null
+        // null means a Keep Alive (blank line)
+        var_dump($data);
+    });
 
 } catch(FloodgateException $e) {
-	// handle exceptions
+    // handle exceptions
 }
 ```
 
+## Class documentation
+- [Floodgate](docs/Floodgate.md)
+ 
 ## Twitter Documentation
 - [Public Streams](https://dev.twitter.com/streaming/public)
 - [Connecting to a streaming endpoint](https://dev.twitter.com/streaming/overview/connecting)
 - [Message Types](https://dev.twitter.com/streaming/overview/messages-types)
-
-## Warning
-Until a major version of the library gets released, the API may **change**!
 
 ## License
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.

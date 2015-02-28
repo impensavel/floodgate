@@ -148,7 +148,6 @@ abstract class Floodgate implements FloodgateInterface
     {
         // check if we're allowed to reconnect
         if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
-
             $parameters = $this->getParameters();
 
             // if differences are found, update parameters
@@ -182,7 +181,6 @@ abstract class Floodgate implements FloodgateInterface
             if ($response) {
                 $this->processor($callback, $response);
             }
-
         } while ($this->reconnect);
     }
 
@@ -197,7 +195,6 @@ abstract class Floodgate implements FloodgateInterface
     protected function processor(Closure $callback, StreamInterface $stream)
     {
         while (($line = Utils::readline($stream)) !== false) {
-
             if ($this->readyToReconnect()) {
                 break;
             }
