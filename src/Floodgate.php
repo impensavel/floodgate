@@ -27,6 +27,11 @@ abstract class Floodgate
     const STREAM_URL = 'https://stream.twitter.com/1.1/statuses/';
 
     /**
+     * Reconnection delay (in seconds)
+     */
+    const RECONNECTION_DELAY = 300;
+
+    /**
      * Back off values for reconnection
      *
      * @static
@@ -46,14 +51,6 @@ abstract class Floodgate
      * @var     int
      */
     protected $lastConnection = 0;
-
-    /**
-     * Last data received timestamp
-     *
-     * @access  protected
-     * @var     int
-     */
-    protected $lastReception = 0;
 
     /**
      * Last HTTP status
@@ -142,17 +139,27 @@ abstract class Floodgate
     }
 
     /**
-     * Check if the connection is stalled
+     * Are we ready to reconnect?
      *
      * @access  protected
      * @return  bool
      */
-    protected function isStalled()
+    protected function readyToReconnect()
     {
-        // Twitter considers a connection stalled
-        // when 90 seconds (3 cycles) have passed
-        // since the last data was received
-        return (time() - $this->lastReception) > 90;
+        // check if we're allowed to reconnect
+        if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
+
+            $parameters = $this->getParameters();
+
+            // if differences are found, update parameters
+            if ($this->parameters != $parameters) {
+                $this->parameters = $parameters;
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -167,9 +174,9 @@ abstract class Floodgate
      */
     protected function consume($endpoint, Closure $callback, $method = 'GET')
     {
-        do {
-            $this->parameters = $this->getParameters();
+        $this->parameters = $this->getParameters();
 
+        do {
             $response = $this->open($endpoint, $method);
 
             if ($response) {
@@ -189,20 +196,14 @@ abstract class Floodgate
      */
     protected function processor(Closure $callback, StreamInterface $stream)
     {
-        // (re)set last received data timestamp
-        $this->lastReception = time();
-
         while (($line = Utils::readline($stream)) !== false) {
 
-            if ($this->isStalled()) {
+            if ($this->readyToReconnect()) {
                 break;
             }
 
             // pass each line to the callback
             $callback(json_decode($line));
-
-            // update last data received timestamp
-            $this->lastReception = time();
         }
     }
 
