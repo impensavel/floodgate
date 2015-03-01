@@ -48,7 +48,7 @@ try {
         'token_secret'    => 'EUyz6MawvBlabLAb2gY6fgyTagtMMYny7GmzKfulGo3Di',
     ];
 
-    // create MyFloodgate instance
+    // create a MyFloodgate instance
     $stream = MyFloodgate::create($config);
 
     // consume the Twitter Streaming API filter endpoint

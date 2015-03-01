@@ -34,7 +34,7 @@ On the other hand, there might be use cases where we need to update parameters o
 
 ```php
 
-// Laravel Keyword model
+// a Laravel Keyword model
 use App\Keyword;
 
 class MyFloodgate extends Floodgate
@@ -68,7 +68,7 @@ To change the delay value, just override the `RECONNECTION_DELAY` constant in yo
 class MyFloodgate extends Floodgate
 {
     // delay reconnections for 10 minutes instead of 5
-	const RECONNECTION_DELAY = 600;
+    const RECONNECTION_DELAY = 600;
 }
 
 ```
@@ -82,7 +82,7 @@ $config = [
     // ...
 ];
 
-// create MyFloodgate instance
+// create a MyFloodgate instance
 $stream = MyFloodgate::create($config);
 ```
 
