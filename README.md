@@ -65,7 +65,7 @@ try {
 
 ## Class documentation
 - [Floodgate](docs/Floodgate.md)
- 
+
 ## Twitter Documentation
 - [Public Streams](https://dev.twitter.com/streaming/public)
 - [Connecting to a streaming endpoint](https://dev.twitter.com/streaming/overview/connecting)

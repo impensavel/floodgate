@@ -60,9 +60,9 @@ In cases like this, reconnections to the Streaming API will be handled automatic
 
 For a reconnection to happen, there must be a difference between the new and old parameters and the elapsed time from the last (re)connection must be at least 300 seconds (5 minutes). 
 
-This delay is enforced to avoid many reconnections to the Streaming API in a short period of time, which may get your account rate limited.
+This delay is enforced to avoid many reconnections to the Streaming API in a short period of time, which may get the account rate limited.
 
-To change the delay value, just override the `RECONNECTION_DELAY` constant in your implementation, like in the example bellow:
+To change the delay value, override the `RECONNECTION_DELAY` constant in your implementation, like in the example bellow:
 
 ```php
 class MyFloodgate extends Floodgate
@@ -76,7 +76,7 @@ class MyFloodgate extends Floodgate
 ## Reconnections
 A reconnection is triggered when the library detects that the parameters have changed and it's OK to do so, or when we get a 503 (server unavailable) or a 420 (rate limited).
 
-In these two last cases, the library will apply a back off strategy which will increase exponentially the time between reconnects, if we keep getting the same responses over and over.
+In these two last cases, the library will apply a back off strategy which will increase exponentially the time between reconnects, if we keep getting the same response over and over.
 
 The default limit for those cases is `6` attempts before throwing a `FloodgateException`, but if needed, the value can be changed by overriding the `RECONNECTION_ATTEMPTS` constant.
 
@@ -103,7 +103,7 @@ $stream = MyFloodgate::create($config);
 ```
 
 ## Consumer methods
-The `sample()`, `filter()` and `firehose()` methods require a `Closure` argument. While consuming a stream, a Twitter message will be made available at each loop/cycle to the `Closure`.
+The `sample()`, `filter()` and `firehose()` methods require a `Closure` argument. While consuming a stream, a Twitter message will be made available at each loop/cycle to it.
 
 Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**, which can be a Tweet or one of the following message types:
 
@@ -116,6 +116,17 @@ Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**,
 - `warning`
 
 For more information about the message types listed here, check the [documentation](https://dev.twitter.com/streaming/overview/messages-types).
+
+By setting the `MESSAGE_AS_ASSOC` constant to `true`, Twitter messages will be passed as associative arrays.
+
+```php
+class MyFloodgate extends Floodgate
+{
+    // pass Twitter messages as associative arrays
+    const MESSAGE_AS_ASSOC = true;
+}
+
+```
 
 ### Closure example
 ```php
