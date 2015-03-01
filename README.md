@@ -14,7 +14,7 @@ This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
 
 ## Installation
 ``` bash
-composer require "impensavel/floodgate:dev-master"
+composer require "impensavel/floodgate:1.0.*"
 ```
 
 ## Basic usage example
