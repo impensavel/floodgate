@@ -37,6 +37,11 @@ abstract class Floodgate implements FloodgateInterface
     const RECONNECTION_ATTEMPTS = 6;
 
     /**
+     * Twitter message as associative array?
+     */
+    const MESSAGE_AS_ASSOC = false;
+
+    /**
      * Back off values for reconnection
      *
      * @static
@@ -197,7 +202,7 @@ abstract class Floodgate implements FloodgateInterface
             }
 
             // pass each line to the callback
-            $callback(json_decode($line));
+            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
         }
     }
 
