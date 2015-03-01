@@ -1,5 +1,5 @@
 # Floodgate
-A PHP library for consuming [Twitter](http://www.twitter.com)'s Streaming API.
+A PHP library that makes consuming the [Twitter](http://www.twitter.com) Streaming API, straightforward.
 
 This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
 
@@ -48,15 +48,13 @@ try {
         'token_secret'    => 'EUyz6MawvBlabLAb2gY6fgyTagtMMYny7GmzKfulGo3Di',
     ];
 
-    // create a MyFloodgate instance
-    $fg = MyFloodgate::create($config);
+    // create MyFloodgate instance
+    $stream = MyFloodgate::create($config);
 
     // consume the Twitter Streaming API filter endpoint
-    $fg->filter(function ($data)
+    $stream->filter(function ($data)
     {
         // dump each line from the stream
-        // $data may be a plain old PHP object or null
-        // null means a Keep Alive (blank line)
         var_dump($data);
     });
 
