@@ -32,6 +32,11 @@ abstract class Floodgate implements FloodgateInterface
     const RECONNECTION_DELAY = 300;
 
     /**
+     * Reconnection attempts
+     */
+    const RECONNECTION_ATTEMPTS = 6;
+
+    /**
      * Back off values for reconnection
      *
      * @static
@@ -243,7 +248,7 @@ abstract class Floodgate implements FloodgateInterface
 
             case 420: // too many reconnects
             case 503: // server unavailable
-                if ($this->attempts > 6) {
+                if ($this->attempts > static::RECONNECTION_ATTEMPTS) {
                     throw new FloodgateException('Reached maximum connection attempts', $this->lastStatus);
                 }
 
