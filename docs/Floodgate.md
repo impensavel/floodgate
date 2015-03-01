@@ -73,6 +73,22 @@ class MyFloodgate extends Floodgate
 
 ```
 
+## Reconnections
+A reconnection is triggered when the library detects that the parameters have changed and it's OK to do so, or when we get a 503 (server unavailable) or a 420 (rate limited).
+
+In these two last cases, the library will apply a back off strategy which will increase exponentially the time between reconnects, if we keep getting the same responses over and over.
+
+The default limit for those cases is `6` attempts before throwing a `FloodgateException`, but if needed, the value can be changed by overriding the `RECONNECTION_ATTEMPTS` constant.
+
+```php
+class MyFloodgate extends Floodgate
+{
+    // attempt only 3 reconnections before bailing out
+    const RECONNECTION_ATTEMPTS = 3;
+}
+
+```
+
 ## Instantiation
 The easiest way to create an instance of a class that extends from the `Floodgate` is to use the `create()` method.
 
