@@ -1,4 +1,7 @@
 # Floodgate
+[![Latest Stable Version](https://poser.pugx.org/impensavel/floodgate/v/stable.svg)](https://packagist.org/packages/impensavel/floodgate) 
+[![Build Status](https://travis-ci.org/impensavel/floodgate.svg?branch=master)](https://travis-ci.org/impensavel/floodgate)
+
 A PHP library that makes consuming the [Twitter](http://www.twitter.com) Streaming API, straightforward.
 
 This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
@@ -14,7 +17,7 @@ This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
 
 ## Installation
 ``` bash
-composer require "impensavel/floodgate:1.0.*"
+composer require "impensavel/floodgate:~1.0"
 ```
 
 ## Basic usage example

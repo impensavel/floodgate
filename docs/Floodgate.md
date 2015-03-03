@@ -74,9 +74,14 @@ class MyFloodgate extends Floodgate
 ```
 
 ## Reconnections
-A reconnection is triggered when the library detects that the parameters have changed and it's OK to do so, or when we get a 503 (server unavailable) or a 420 (rate limited).
+A reconnection is triggered when:
 
-In these two last cases, the library will apply a back off strategy which will increase exponentially the time between reconnects, if we keep getting the same response over and over.
+- The library detects that the parameters have changed and it's OK to do so
+- We have been disconnected because we fell behind (most likely by using the `firehose.json` endpoint)
+- We get an HTTP 503 response (server unavailable)
+- We get an HTTP 420 response (rate limited)
+
+In these two last cases, the library will apply a back off strategy which will increase the time exponentially between reconnects.
 
 The default limit for those cases is `6` attempts before throwing a `FloodgateException`, but if needed, the value can be changed by overriding the `RECONNECTION_ATTEMPTS` constant.
 
