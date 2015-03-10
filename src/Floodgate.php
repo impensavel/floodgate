@@ -119,13 +119,6 @@ abstract class Floodgate implements FloodgateInterface
      */
     public static function create(array $config)
     {
-        $config = array_merge([
-            'consumer_key'    => '',
-            'consumer_secret' => '',
-            'token'           => '',
-            'token_secret'    => '',
-        ], $config);
-
         $http = new Client([
             'base_url' => static::STREAM_URL,
             'defaults' => [
