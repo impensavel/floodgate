@@ -76,7 +76,7 @@ class FloodgateTest extends PHPUnit_Framework_TestCase
      * Test filter() method to FAIL (Too many reconnects)
      *
      * @expectedException         \Impensavel\Floodgate\FloodgateException
-     * @expectedExceptionMessage  Reached maximum connection attempts
+     * @expectedExceptionMessage  Reached maximum reconnection attempts
      * @expectedExceptionCode     420
      *
      * @depends testInstancePass
@@ -92,7 +92,7 @@ class FloodgateTest extends PHPUnit_Framework_TestCase
      * Test filter() method to FAIL (Server unavailable)
      *
      * @expectedException         \Impensavel\Floodgate\FloodgateException
-     * @expectedExceptionMessage  Reached maximum connection attempts
+     * @expectedExceptionMessage  Reached maximum reconnection attempts
      * @expectedExceptionCode     503
      *
      * @depends testInstancePass

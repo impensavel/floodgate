@@ -23,21 +23,29 @@ abstract class Floodgate implements FloodgateInterface
 {
     /**
      * Twitter Streaming API URL
+     *
+     * @var  string
      */
     const STREAM_URL = 'https://stream.twitter.com/1.1/statuses/';
 
     /**
      * Reconnection delay (in seconds)
+     *
+     * @var  int
      */
     const RECONNECTION_DELAY = 300;
 
     /**
      * Reconnection attempts
+     *
+     * @var  int
      */
     const RECONNECTION_ATTEMPTS = 6;
 
     /**
      * Twitter message as associative array?
+     *
+     * @var  bool
      */
     const MESSAGE_AS_ASSOC = false;
 
@@ -161,7 +169,7 @@ abstract class Floodgate implements FloodgateInterface
      *
      * @access  protected
      * @param   string  $endpoint   Streaming API endpoint
-     * @param   Closure $callback
+     * @param   Closure $callback   Data handler callback
      * @param   string  $method     HTTP method
      * @throws  FloodgateException
      * @return  void
@@ -247,7 +255,7 @@ abstract class Floodgate implements FloodgateInterface
             case 420: // too many reconnects
             case 503: // server unavailable
                 if ($this->attempts > static::RECONNECTION_ATTEMPTS) {
-                    throw new FloodgateException('Reached maximum connection attempts', $this->lastStatus);
+                    throw new FloodgateException('Reached maximum reconnection attempts', $this->lastStatus);
                 }
 
                 return false;
