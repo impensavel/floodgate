@@ -1,9 +1,10 @@
 {
     "name": "impensavel/floodgate",
     "type": "library",
-    "description": "A PHP library for consuming Twitter’s Streaming API",
+    "description": "A PHP library for consuming the Twitter Streaming API v1.1 via OAuth",
     "keywords": [
         "twitter",
+        "oauth",
         "streaming",
         "api",
         "json"
@@ -18,11 +19,11 @@
     ],
     "require": {
         "php": ">=5.4.0",
-        "guzzlehttp/guzzle": "5.2.*",
+        "guzzlehttp/guzzle": "~5.0",
         "guzzlehttp/oauth-subscriber": "0.2.*"
     },
     "require-dev": {
-        "phpunit/phpunit": "~4.5"
+        "phpunit/phpunit": "~4.0"
     },
     "autoload": {
         "psr-4": {
