@@ -17,7 +17,7 @@ use Closure;
 interface FloodgateInterface
 {
     /**
-     * Get the Twitter Streaming API parameters
+     * Get the Streaming API endpoint parameters
      *
      * @access  public
      * @return  array
@@ -28,7 +28,7 @@ interface FloodgateInterface
      * Consume Streaming API Sample endpoint
      *
      * @access  public
-     * @param   Closure $callback
+     * @param   Closure $callback Data handler callback
      * @throws  FloodgateException
      * @return  void
      */
@@ -38,7 +38,7 @@ interface FloodgateInterface
      * Consume Streaming API Filter endpoint
      *
      * @access  public
-     * @param   Closure $callback
+     * @param   Closure $callback Data handler callback
      * @throws  FloodgateException
      * @return  void
      */
@@ -48,7 +48,7 @@ interface FloodgateInterface
      * Consume Streaming API Firehose endpoint
      *
      * @access  public
-     * @param   Closure $callback  Callback to
+     * @param   Closure $callback Data handler callback
      * @throws  FloodgateException
      * @return  void
      */
