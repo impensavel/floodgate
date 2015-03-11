@@ -61,7 +61,7 @@ try {
         var_dump($data);
     });
 
-} catch(FloodgateException $e) {
+} catch (FloodgateException $e) {
     // handle exceptions
 }
 ```

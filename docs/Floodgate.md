@@ -1,13 +1,13 @@
 # Floodgate
-This abstract class implements three out of four methods of the `FloodgateInterface` contract.
+This abstract class implements three of the four methods of the `FloodgateInterface` contract.
 
 ## Usage
 In order to use the library, the abstract `Floodgate` class must be extended and the `getParameters()` method must be implemented.
 
 ## Implementation
-The `getParameters()` method must return an `array` of configurations that will be made available when one of the consumer methods (`sample()`, `filter()`,`firehose()`) gets called.
+The `getParameters()` method must return an associative `array`, which will be used by the consumer method (`sample()`, `filter()`,`firehose()`) being called, when doing a request to the API.
 
-To know which parameters to return for each method, [check](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose).
+[Read](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose) to know what parameters each method/API endpoint supports.
 
 ### Example #1
 The following implementation is for use cases that **don't require** the Streaming API parameters to be updated. In this particular case, we want to continuously filter by the `php` keyword.
@@ -49,7 +49,7 @@ class MyFloodgate extends Floodgate
 
         return [
             'stall_warnings' => 'true',
-            'track'          => implode(',', $keywords),
+            'track'          => $keywords,
         ];
     }
 }
@@ -58,11 +58,11 @@ class MyFloodgate extends Floodgate
 
 In cases like this, reconnections to the Streaming API will be handled automatically by the library. 
 
-For a reconnection to happen, there must be a difference between the new and old parameters and the elapsed time from the last (re)connection must be at least 300 seconds (5 minutes). 
+To trigger a reconnection, the new and old parameters must be different and the elapsed time from the last (re)connection must be at least 300 seconds (5 minutes).
 
-This delay is enforced to avoid many reconnections to the Streaming API in a short period of time, which may get the account rate limited.
+This delay is enforced to avoid many reconnections to the Streaming API in a short time period, which may get the account rate limited.
 
-To change the delay value, override the `RECONNECTION_DELAY` constant in your implementation, like in the example bellow:
+To change the delay value, override the `RECONNECTION_DELAY` constant in your implementation.
 
 ```php
 class MyFloodgate extends Floodgate
@@ -81,7 +81,7 @@ A reconnection is triggered when:
 - We get an HTTP 503 response (server unavailable)
 - We get an HTTP 420 response (rate limited)
 
-In these two last cases, the library will apply a back off strategy which will increase the time exponentially between reconnects.
+In these two last cases, the library will apply a back off strategy, increasing the time between reconnections exponentially.
 
 The default limit for those cases is `6` attempts before throwing a `FloodgateException`, but if needed, the value can be changed by overriding the `RECONNECTION_ATTEMPTS` constant.
 
@@ -122,7 +122,7 @@ Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**,
 
 For more information about the message types listed here, check the [documentation](https://dev.twitter.com/streaming/overview/messages-types).
 
-By setting the `MESSAGE_AS_ASSOC` constant to `true`, Twitter messages will be passed as associative arrays.
+By setting the `MESSAGE_AS_ASSOC` constant to `true`, Twitter messages will be passed as an associative `array` instead of a **Plain Old PHP Object**.
 
 ```php
 class MyFloodgate extends Floodgate
@@ -133,13 +133,20 @@ class MyFloodgate extends Floodgate
 
 ```
 
-### Closure example
+### Handling data
+The `Closure` each consumer method accepts as argument, is responsible for handling data from the stream.
+
+Here's an example of how to save Tweets from verified users.
 ```php
-$lambda = function ($data)
+$handler = function ($data) 
 {
-    // check if the data being passed is a Tweet
+    // check if the message being passed is a Tweet
+    // only Tweets have a created_at property
     if (isset($data->created_at)) {
-        // save it do a database, perhaps?
+        // check if the Tweet is from a verified User
+        if ($data->user->verified) {
+            // store the Tweet into the database
+        }
     }
 };
 ```
@@ -149,15 +156,15 @@ Once the `Closure` is implemented, we can start using the consumer methods.
 
 #### Sample
 ```php
-$stream->sample($lambda);
+$stream->sample($handler);
 ```
 
 #### Filter
 ```php
-$stream->filter($lambda);
+$stream->filter($handler);
 ```
 
 #### Firehose
 ```php
-$stream->firehose($lambda);
+$stream->firehose($handler);
 ```
