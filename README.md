@@ -57,7 +57,7 @@ try {
     // consume the Twitter Streaming API filter endpoint
     $stream->filter(function ($data)
     {
-        // dump each line from the stream
+        // dump each message from the stream
         var_dump($data);
     });
 

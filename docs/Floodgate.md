@@ -5,7 +5,7 @@ This abstract class implements three of the four methods of the `FloodgateInterf
 In order to use the library, the abstract `Floodgate` class must be extended and the `getParameters()` method must be implemented.
 
 ## Implementation
-The `getParameters()` method must return an associative `array`, which will be used by the consumer method (`sample()`, `filter()`,`firehose()`) being called, when doing a request to the API.
+The `getParameters()` method must return an associative `array`. The key/value pairs being returned should match the **GET** or **POST** parameters expected by the consumer method (`sample()`, `filter()`,`firehose()`) being called.
 
 [Read](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose) to know what parameters each method/API endpoint supports.
 
