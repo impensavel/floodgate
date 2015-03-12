@@ -17,6 +17,24 @@ use Closure;
 interface FloodgateInterface
 {
     /**
+     * Apply a back off strategy?
+     *
+     * @static
+     * @access  public
+     * @return  Closure
+     */
+    public static function applyBackOffStrategy();
+
+    /**
+     * Get the back off strategy delay
+     *
+     * @static
+     * @access  public
+     * @return  Closure
+     */
+    public static function backOffStrategyDelay();
+
+    /**
      * Get the Streaming API endpoint parameters
      *
      * @access  public
