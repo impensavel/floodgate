@@ -15,9 +15,11 @@ namespace Impensavel\Floodgate;
 use Closure;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Event\AbstractTransferEvent;
 use GuzzleHttp\Stream\StreamInterface;
 use GuzzleHttp\Stream\Utils;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
+use GuzzleHttp\Subscriber\Retry\RetrySubscriber;
 
 abstract class Floodgate implements FloodgateInterface
 {
@@ -43,24 +45,22 @@ abstract class Floodgate implements FloodgateInterface
     const RECONNECTION_ATTEMPTS = 6;
 
     /**
+     * Reconnection back off strategy values
+     *
+     * @access  protected
+     * @var     array
+     */
+    protected static $backOff = [
+        420 => 60, // too many reconnects
+        503 => 5,  // server unavailable
+    ];
+
+    /**
      * Twitter message as associative array?
      *
      * @var  bool
      */
     const MESSAGE_AS_ASSOC = false;
-
-    /**
-     * Back off values for reconnection
-     *
-     * @static
-     * @access  protected
-     * @var     array
-     */
-    protected static $backOff = [
-        200 => 0,  // OK
-        420 => 60, // too many reconnects
-        503 => 5,  // server unavailable
-    ];
 
     /**
      * Last connection timestamp
@@ -69,22 +69,6 @@ abstract class Floodgate implements FloodgateInterface
      * @var     int
      */
     protected $lastConnection = 0;
-
-    /**
-     * Last HTTP status
-     *
-     * @access  protected
-     * @var     int
-     */
-    protected $lastStatus = 200;
-
-    /**
-     * Reconnection attempts
-     *
-     * @access  protected
-     * @var     int
-     */
-    protected $attempts = 0;
 
     /**
      * Streaming API parameters
@@ -106,15 +90,17 @@ abstract class Floodgate implements FloodgateInterface
      * Floodgate constructor
      *
      * @access  public
-     * @param   \GuzzleHttp\Client                  $http
-     * @param   \GuzzleHttp\Subscriber\Oauth\Oauth1 $oauth
+     * @param   \GuzzleHttp\Client                           $http
+     * @param   \GuzzleHttp\Subscriber\Oauth\Oauth1          $oauth
+     * @param   \GuzzleHttp\Subscriber\Retry\RetrySubscriber $retry
      * @return  Floodgate
      */
-    public function __construct(Client $http, Oauth1 $oauth)
+    public function __construct(Client $http, Oauth1 $oauth, RetrySubscriber $retry)
     {
         $this->http = $http;
 
         $this->http->getEmitter()->attach($oauth);
+        $this->http->getEmitter()->attach($retry);
     }
 
     /**
@@ -138,7 +124,13 @@ abstract class Floodgate implements FloodgateInterface
 
         $oauth = new Oauth1($config);
 
-        return new static($http, $oauth);
+        $retry = new RetrySubscriber([
+            'filter' => static::applyBackOffStrategy(),
+            'delay'  => static::backOffStrategyDelay(),
+            'max'    => static::RECONNECTION_ATTEMPTS,
+        ]);
+
+        return new static($http, $oauth, $retry);
     }
 
     /**
@@ -181,6 +173,9 @@ abstract class Floodgate implements FloodgateInterface
         while (true) {
             $response = $this->open($endpoint, $method);
 
+            // (re)set last connection timestamp
+            $this->lastConnection = time();
+
             if ($response) {
                 $this->processor($callback, $response);
             }
@@ -198,12 +193,12 @@ abstract class Floodgate implements FloodgateInterface
     protected function processor(Closure $callback, StreamInterface $stream)
     {
         while (($line = Utils::readline($stream)) !== false) {
+            // pass each line to the callback
+            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
+
             if ($this->readyToReconnect()) {
                 break;
             }
-
-            // pass each line to the callback
-            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
         }
     }
 
@@ -234,36 +229,44 @@ abstract class Floodgate implements FloodgateInterface
 
         $request = $this->http->createRequest($method, $endpoint, $options);
 
-        // back off exponentially
-        sleep(static::$backOff[$this->lastStatus] * pow(2, $this->attempts++));
-
         $response = $this->http->send($request);
 
-        // save latest HTTP status code
-        $this->lastStatus = $response->getStatusCode();
+        return $response->getBody();
+    }
 
-        // (re)set last connection timestamp
-        $this->lastConnection = time();
+    /**
+     * {@inheritdoc}
+     */
+    public static function applyBackOffStrategy()
+    {
+        return function ($retries, AbstractTransferEvent $event)
+        {
+            $response = $event->getResponse();
 
-        // act according to HTTP status
-        switch ($this->lastStatus) {
-            case 200: // OK
-                $this->attempts = 0;
+            if ($response) {
+                return array_key_exists($response->getStatusCode(), static::$backOff);
+            }
 
-                return $response->getBody();
+            return false;
+        };
+    }
 
-            case 420: // too many reconnects
-            case 503: // server unavailable
-                if ($this->attempts > static::RECONNECTION_ATTEMPTS) {
-                    throw new FloodgateException('Reached maximum reconnection attempts', $this->lastStatus);
-                }
+    /**
+     * {@inheritdoc}
+     */
+    public static function backOffStrategyDelay()
+    {
+        return function ($retries, AbstractTransferEvent $event)
+        {
+            $response = $event->getResponse();
 
-                return false;
+            // back off exponentially
+            if ($response) {
+                return static::$backOff[$response->getStatusCode()] * pow(2, $retries);
+            }
 
-            // everything else should be unrecoverable
-            default:
-                throw new FloodgateException($response->getReasonPhrase(), $this->lastStatus);
-        }
+            return 0;
+        };
     }
 
     /**
