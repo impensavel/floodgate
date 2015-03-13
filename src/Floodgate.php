@@ -241,10 +241,8 @@ abstract class Floodgate implements FloodgateInterface
     {
         return function ($retries, AbstractTransferEvent $event)
         {
-            $response = $event->getResponse();
-
-            if ($response) {
-                $status = $response->getStatusCode();
+            if ($event->hasResponse()) {
+                $status = $event->getResponse()->getStatusCode();
 
                 if ($retries >= static::RECONNECTION_ATTEMPTS) {
                     throw new FloodgateException('Reached maximum reconnection attempts', $status);
@@ -264,11 +262,11 @@ abstract class Floodgate implements FloodgateInterface
     {
         return function ($retries, AbstractTransferEvent $event)
         {
-            $response = $event->getResponse();
+            if ($event->hasResponse()) {
+                $status = $event->getResponse()->getStatusCode();
 
-            // back off exponentially
-            if ($response) {
-                return static::$backOff[$response->getStatusCode()] * pow(2, $retries);
+                // back off exponentially
+                return static::$backOff[$status] * pow(2, $retries);
             }
 
             return 0;
