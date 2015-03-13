@@ -127,7 +127,7 @@ abstract class Floodgate implements FloodgateInterface
         $retry = new RetrySubscriber([
             'filter' => static::applyBackOffStrategy(),
             'delay'  => static::backOffStrategyDelay(),
-            'max'    => static::RECONNECTION_ATTEMPTS,
+            'max'    => static::RECONNECTION_ATTEMPTS + 1,
         ]);
 
         return new static($http, $oauth, $retry);
@@ -244,7 +244,13 @@ abstract class Floodgate implements FloodgateInterface
             $response = $event->getResponse();
 
             if ($response) {
-                return array_key_exists($response->getStatusCode(), static::$backOff);
+                $status = $response->getStatusCode();
+
+                if ($retries >= static::RECONNECTION_ATTEMPTS) {
+                    throw new FloodgateException('Reached maximum reconnection attempts', $status);
+                }
+
+                return array_key_exists($status, static::$backOff);
             }
 
             return false;

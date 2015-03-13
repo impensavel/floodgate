@@ -1,5 +1,5 @@
 # Floodgate
-This abstract class implements three of the four methods of the `FloodgateInterface` contract.
+This abstract class implements five of the six methods of the `FloodgateInterface` contract.
 
 ## Usage
 In order to use the library, the abstract `Floodgate` class must be extended and the `getParameters()` method must be implemented.
