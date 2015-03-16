@@ -145,6 +145,20 @@ class Floodgate implements FloodgateInterface
     }
 
     /**
+     * Register a generator
+     *
+     * @access  protected
+     * @param   string    $endpoint
+     * @param   Closure   $generator
+     * @return  void
+     */
+    protected function register($endpoint, Closure $generator)
+    {
+        $this->generators[$endpoint] = $generator;
+        $this->cache[$endpoint] = $generator();
+    }
+
+    /**
      * Generate API endpoint parameters
      *
      * @access  protected
@@ -249,9 +263,7 @@ class Floodgate implements FloodgateInterface
      */
     protected function consume($endpoint, Closure $callback, Closure $generator, $method = 'GET')
     {
-        // register generator
-        $this->generators[$endpoint] = $generator;
-        $this->cache[$endpoint] = $generator();
+        $this->register($endpoint, $generator);
 
         while (true) {
             $response = $this->open($endpoint, $method);
