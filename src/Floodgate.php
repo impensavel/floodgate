@@ -51,8 +51,8 @@ class Floodgate implements FloodgateInterface
      * @var     array
      */
     protected static $backOff = [
-        420 => 60, // too many reconnects
-        503 => 5,  // server unavailable
+        420 => 60, // Enhance Your Calm
+        503 => 5,  // Service Unavailable
     ];
 
     /**
@@ -222,8 +222,20 @@ class Floodgate implements FloodgateInterface
 
         $response = $this->http->send($request);
 
-        if ($response->getStatusCode() != 200) {
-            throw new FloodgateException($response->getReasonPhrase(), $response->getStatusCode());
+        $status = $response->getStatusCode();
+
+        if ($status != 200) {
+            switch ($status) {
+                case 420:
+                    $reason = 'Enhance Your Calm';
+                    break;
+
+                default:
+                    $reason = $response->getReasonPhrase();
+                    break;
+            }
+
+            throw new FloodgateException($reason, $status);
         }
 
         return $response->getBody();
