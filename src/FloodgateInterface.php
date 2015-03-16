@@ -35,40 +35,35 @@ interface FloodgateInterface
     public static function backOffStrategyDelay();
 
     /**
-     * Get the Streaming API endpoint parameters
-     *
-     * @access  public
-     * @return  array
-     */
-    public function getParameters();
-
-    /**
      * Consume Streaming API Sample endpoint
      *
      * @access  public
-     * @param   Closure $callback Data handler callback
+     * @param   Closure $callback  Data handler callback
+     * @param   Closure $generator API endpoint parameter generator
      * @throws  FloodgateException
      * @return  void
      */
-    public function sample(Closure $callback);
+    public function sample(Closure $callback, Closure $generator);
 
     /**
      * Consume Streaming API Filter endpoint
      *
      * @access  public
-     * @param   Closure $callback Data handler callback
+     * @param   Closure $callback  Data handler callback
+     * @param   Closure $generator API endpoint parameter generator
      * @throws  FloodgateException
      * @return  void
      */
-    public function filter(Closure $callback);
+    public function filter(Closure $callback, Closure $generator);
 
     /**
      * Consume Streaming API Firehose endpoint
      *
      * @access  public
-     * @param   Closure $callback Data handler callback
+     * @param   Closure $callback  Data handler callback
+     * @param   Closure $generator API endpoint parameter generator
      * @throws  FloodgateException
      * @return  void
      */
-    public function firehose(Closure $callback);
+    public function firehose(Closure $callback, Closure $generator);
 }
