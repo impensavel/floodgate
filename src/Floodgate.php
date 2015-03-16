@@ -21,7 +21,7 @@ use GuzzleHttp\Stream\Utils;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
 use GuzzleHttp\Subscriber\Retry\RetrySubscriber;
 
-abstract class Floodgate implements FloodgateInterface
+class Floodgate implements FloodgateInterface
 {
     /**
      * Twitter Streaming API URL
@@ -71,12 +71,20 @@ abstract class Floodgate implements FloodgateInterface
     protected $lastConnection = 0;
 
     /**
-     * Streaming API parameters
+     * Streaming API parameter generators
      *
      * @access  protected
      * @var     array
      */
-    protected $parameters = [];
+    protected $generators = [];
+
+    /**
+     * Streaming API parameter cache
+     *
+     * @access  protected
+     * @var     array
+     */
+    protected $cache = [];
 
     /**
      * HTTP Client object
@@ -116,7 +124,10 @@ abstract class Floodgate implements FloodgateInterface
         $http = new Client([
             'base_url' => static::STREAM_URL,
             'defaults' => [
-                'headers' => [
+                'exceptions' => false,
+                'stream'     => true,
+                'auth'       => 'oauth',
+                'headers'    => [
                     'User-Agent' => 'Floodgate/1.0',
                 ],
             ],
@@ -127,27 +138,45 @@ abstract class Floodgate implements FloodgateInterface
         $retry = new RetrySubscriber([
             'filter' => static::applyBackOffStrategy(),
             'delay'  => static::backOffStrategyDelay(),
-            'max'    => static::RECONNECTION_ATTEMPTS + 1,
+            'max'    => static::RECONNECTION_ATTEMPTS,
         ]);
 
         return new static($http, $oauth, $retry);
     }
 
     /**
+     * Generate API endpoint parameters
+     *
+     * @access  protected
+     * @param   string    $endpoint
+     * @throws  FloodgateException
+     * @return  array
+     */
+    protected function generate($endpoint)
+    {
+        if (! isset($this->generators[$endpoint])) {
+            throw new FloodgateException('Invalid endpoint: '.$endpoint);
+        }
+
+        return $this->generators[$endpoint]();
+    }
+
+    /**
      * Are we ready to reconnect?
      *
      * @access  protected
+     * @param   string    $endpoint
      * @return  bool
      */
-    protected function readyToReconnect()
+    protected function readyToReconnect($endpoint)
     {
         // check if we're allowed to reconnect
         if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
-            $parameters = $this->getParameters();
+            $parameters = $this->generate($endpoint);
 
             // if differences are found, update parameters
-            if ($this->parameters != $parameters) {
-                $this->parameters = $parameters;
+            if ($this->cache[$endpoint] != $parameters) {
+                $this->cache[$endpoint] = $parameters;
 
                 return true;
             }
@@ -157,18 +186,72 @@ abstract class Floodgate implements FloodgateInterface
     }
 
     /**
+     * Open the Floodgate
+     *
+     * @access  protected
+     * @param   string $endpoint Streaming API endpoint
+     * @param   string $method   HTTP method
+     * @throws  FloodgateException
+     * @return  \GuzzleHttp\Stream\StreamInterface
+     */
+    protected function open($endpoint, $method = 'GET')
+    {
+        $parameters = [];
+
+        foreach ($this->cache[$endpoint] as $field => $value) {
+            $parameters[$field] = is_array($value) ? implode(',', $value) : $value;
+        }
+
+        $request = $this->http->createRequest($method, $endpoint, [
+            (strtolower($method) == 'post') ? 'body' : 'query' => $parameters,
+        ]);
+
+        $response = $this->http->send($request);
+
+        if ($response->getStatusCode() != 200) {
+            throw new FloodgateException($response->getReasonPhrase(), $response->getStatusCode());
+        }
+
+        return $response->getBody();
+    }
+
+    /**
+     * Stream processor
+     *
+     * @access  protected
+     * @param   string                             $endpoint
+     * @param   Closure                            $callback
+     * @param   \GuzzleHttp\Stream\StreamInterface $stream
+     * @return  void
+     */
+    protected function processor($endpoint, Closure $callback, StreamInterface $stream)
+    {
+        while (($line = Utils::readline($stream)) !== false) {
+            // pass each line to the callback
+            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
+
+            if ($this->readyToReconnect($endpoint)) {
+                break;
+            }
+        }
+    }
+
+    /**
      * Consumption loop
      *
      * @access  protected
-     * @param   string  $endpoint   Streaming API endpoint
-     * @param   Closure $callback   Data handler callback
-     * @param   string  $method     HTTP method
+     * @param   string  $endpoint  Streaming API endpoint
+     * @param   Closure $callback  Data handler callback
+     * @param   Closure $generator API endpoint parameter generator
+     * @param   string  $method    HTTP method
      * @throws  FloodgateException
      * @return  void
      */
-    protected function consume($endpoint, Closure $callback, $method = 'GET')
+    protected function consume($endpoint, Closure $callback, Closure $generator, $method = 'GET')
     {
-        $this->parameters = $this->getParameters();
+        // register generator
+        $this->generators[$endpoint] = $generator;
+        $this->cache[$endpoint] = $generator();
 
         while (true) {
             $response = $this->open($endpoint, $method);
@@ -176,62 +259,8 @@ abstract class Floodgate implements FloodgateInterface
             // (re)set last connection timestamp
             $this->lastConnection = time();
 
-            if ($response) {
-                $this->processor($callback, $response);
-            }
+            $this->processor($endpoint, $callback, $response);
         }
-    }
-
-    /**
-     * Stream processor
-     *
-     * @access  protected
-     * @param   Closure                            $callback
-     * @param   \GuzzleHttp\Stream\StreamInterface $stream
-     * @return  void
-     */
-    protected function processor(Closure $callback, StreamInterface $stream)
-    {
-        while (($line = Utils::readline($stream)) !== false) {
-            // pass each line to the callback
-            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
-
-            if ($this->readyToReconnect()) {
-                break;
-            }
-        }
-    }
-
-    /**
-     * Open the Floodgate
-     *
-     * @access  protected
-     * @param   string $endpoint   Streaming API endpoint
-     * @param   string $method     HTTP method
-     * @throws  FloodgateException
-     * @return  \GuzzleHttp\Stream\StreamInterface|bool
-     */
-    protected function open($endpoint, $method = 'GET')
-    {
-        $options = [
-            'exceptions' => false,
-            'stream'     => true,
-            'auth'       => 'oauth',
-        ];
-
-        // set option name according to the HTTP method in use
-        $name = (strtolower($method) == 'post') ? 'body' : 'query';
-
-        // set endpoint parameters
-        foreach ($this->parameters as $field => $value) {
-            $options[$name][$field] = is_array($value) ? implode(',', $value) : $value;
-        }
-
-        $request = $this->http->createRequest($method, $endpoint, $options);
-
-        $response = $this->http->send($request);
-
-        return $response->getBody();
     }
 
     /**
@@ -243,10 +272,6 @@ abstract class Floodgate implements FloodgateInterface
         {
             if ($event->hasResponse()) {
                 $status = $event->getResponse()->getStatusCode();
-
-                if ($retries >= static::RECONNECTION_ATTEMPTS) {
-                    throw new FloodgateException('Reached maximum reconnection attempts', $status);
-                }
 
                 return array_key_exists($status, static::$backOff);
             }
@@ -276,24 +301,24 @@ abstract class Floodgate implements FloodgateInterface
     /**
      * {@inheritdoc}
      */
-    public function sample(Closure $callback)
+    public function sample(Closure $callback, Closure $generator)
     {
-        $this->consume('sample.json', $callback);
+        $this->consume('sample.json', $callback, $generator);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function filter(Closure $callback)
+    public function filter(Closure $callback, Closure $generator)
     {
-        $this->consume('filter.json', $callback, 'POST');
+        $this->consume('filter.json', $callback, $generator, 'POST');
     }
 
     /**
      * {@inheritdoc}
      */
-    public function firehose(Closure $callback)
+    public function firehose(Closure $callback, Closure $generator)
     {
-        $this->consume('firehose.json', $callback);
+        $this->consume('firehose.json', $callback, $generator);
     }
 }
