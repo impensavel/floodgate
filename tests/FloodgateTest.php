@@ -18,90 +18,77 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Message\Response;
 use GuzzleHttp\Subscriber\Mock;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
+use GuzzleHttp\Subscriber\Retry\RetrySubscriber;
 use PHPUnit_Framework_TestCase;
 
 class FloodgateTest extends PHPUnit_Framework_TestCase
 {
     /**
-     * Test create() method to PASS
+     * Mock a MyFloodgate
      *
-     * @access  public
-     * @return  void
+     * @access  private
+     * @param   array
+     * @return  Floodgate
      */
-    public function testCreatePass()
-    {
-        $stream = MyFloodgate::create([]);
-
-        $this->assertInstanceOf('\Impensavel\Floodgate\Floodgate', $stream);
-    }
-
-    /**
-     * Test instantiation to PASS
-     *
-     * @access  public
-     * @return  FloodgateInterface
-     */
-    public function testInstancePass()
+    private function mockGate(array $responses)
     {
         $http = new Client([
-            'base_url' => MyFloodgate::STREAM_URL,
+            'base_url' => Floodgate::STREAM_URL,
+            'defaults' => [
+                'exceptions' => false,
+                'stream'     => true,
+                'auth'       => 'oauth',
+                'headers'    => [
+                    'User-Agent' => 'Floodgate/1.0',
+                ],
+            ],
         ]);
 
         $this->assertInstanceOf('\GuzzleHttp\Client', $http);
 
-        $responses = new Mock([
-            // testFilterFail420
-            new Response(420),
+        $http->getEmitter()->attach(new Mock($responses));
 
-            // testFilterFail503
-            new Response(503),
+        $stream = new MyFloodgate($http, new Oauth1([]), new RetrySubscriber([
+            'filter' => MyFloodgate::applyBackOffStrategy(),
+            'delay'  => MyFloodgate::backOffStrategyDelay(),
+            'max'    => MyFloodgate::RECONNECTION_ATTEMPTS,
+        ]));
 
-            // testFilterFail401
-            new Response(401),
-
-            // testFilterPass
-            new Response(200),
-        ]);
-
-        $http->getEmitter()->attach($responses);
-
-        $stream = new MyFloodgate($http, new Oauth1([]));
-
-        $this->assertInstanceOf('\Impensavel\Floodgate\Floodgate', $stream);
+        $this->assertInstanceOf('\Impensavel\Floodgate\MyFloodgate', $stream);
 
         return $stream;
     }
 
     /**
-     * Test filter() method to FAIL (Too many reconnects)
+     * Test data handler callback to PASS
      *
-     * @expectedException         \Impensavel\Floodgate\FloodgateException
-     * @expectedExceptionMessage  Reached maximum reconnection attempts
-     * @expectedExceptionCode     420
-     *
-     * @depends testInstancePass
-     * @param   FloodgateInterface $stream
-     * @return  void
+     * @access  public
+     * @return  Closure
      */
-    public function testFilterFail420(FloodgateInterface $stream)
+    public function testCallbackHandler()
     {
-        $stream->filter(function ($data) {});
+        $handler = function () {};
+
+        $this->assertTrue(is_callable($handler));
+
+        return $handler;
     }
 
     /**
-     * Test filter() method to FAIL (Server unavailable)
+     * Test generator callback to PASS
      *
-     * @expectedException         \Impensavel\Floodgate\FloodgateException
-     * @expectedExceptionMessage  Reached maximum reconnection attempts
-     * @expectedExceptionCode     503
-     *
-     * @depends testInstancePass
-     * @param   FloodgateInterface $stream
-     * @return  void
+     * @access  public
+     * @return  Closure
      */
-    public function testFilterFail503(FloodgateInterface $stream)
+    public function testCallbackGenerator()
     {
-        $stream->filter(function ($data) {});
+        $generator = function () {
+            return [];
+        };
+
+        $this->assertTrue(is_callable($generator));
+
+        return $generator;
     }
 
     /**
@@ -111,25 +98,75 @@ class FloodgateTest extends PHPUnit_Framework_TestCase
      * @expectedExceptionMessage  Unauthorized
      * @expectedExceptionCode     401
      *
-     * @depends testInstancePass
-     * @param   FloodgateInterface $stream
+     * @depends testCallbackHandler
+     * @depends testCallbackGenerator
+     * @param   Closure   $handler
+     * @param   Closure   $generator
      * @return  void
      */
-    public function testFilterFail401(FloodgateInterface $stream)
+    public function testFilterFail401(Closure $handler, Closure $generator)
     {
-        $stream->filter(function ($data) {});
+        $stream = $this->mockGate([
+            new Response(401),
+        ]);
+
+        $stream->filter($handler, $generator);
     }
 
     /**
-     * Test filter() method to PASS
+     * Test filter() method to FAIL (Enhance Your Calm)
      *
-     * @depends testInstancePass
-     * @param   FloodgateInterface $stream
+     * @expectedException         \Impensavel\Floodgate\FloodgateException
+     * @expectedExceptionMessage  Enhance Your Calm
+     * @expectedExceptionCode     420
+     *
+     * @depends testCallbackHandler
+     * @depends testCallbackGenerator
+     * @param   Closure   $handler
+     * @param   Closure   $generator
      * @return  void
      */
-    public function testFilterPass(FloodgateInterface $stream)
+    public function testFilterFail420(Closure $handler, Closure $generator)
     {
-        $stream->filter(function ($data) {});
+        $stream = $this->mockGate([
+            new Response(420),
+            new Response(420),
+            new Response(420),
+            new Response(420),
+            new Response(420),
+            new Response(420),
+            new Response(420),
+        ]);
+
+        $stream->filter($handler, $generator);
+    }
+
+    /**
+     * Test filter() method to FAIL (Service Unavailable)
+     *
+     * @expectedException         \Impensavel\Floodgate\FloodgateException
+     * @expectedExceptionMessage  Service Unavailable
+     * @expectedExceptionCode     503
+     *
+     * @depends testCallbackHandler
+     * @depends testCallbackGenerator
+     * @param   Closure   $handler
+     * @param   Closure   $generator
+     * @return  void
+     */
+    public function testFilterFail503(Closure $handler, Closure $generator)
+    {
+        $stream = $this->mockGate([
+            new Response(503),
+            new Response(503),
+            new Response(503),
+            new Response(503),
+            new Response(503),
+            new Response(503),
+            new Response(503),
+        ]);
+
+        $stream->filter($handler, $generator);
     }
 }
 
@@ -138,31 +175,9 @@ class FloodgateTest extends PHPUnit_Framework_TestCase
  */
 class MyFloodgate extends Floodgate
 {
-    // do not attempt reconnections
-    const RECONNECTION_ATTEMPTS = 0;
-
     // override values to avoid exponential back offs
     protected static $backOff = [
-        200 => 0,
         420 => 0,
         503 => 0,
-        401 => 0, // fixes Undefined offset error
     ];
-
-    public function getParameters()
-    {
-        return [];
-    }
-
-    // read once implementation
-    protected function consume($endpoint, Closure $callback, $method = 'GET')
-    {
-        $this->parameters = $this->getParameters();
-
-        $response = $this->open($endpoint, $method);
-
-        if ($response) {
-            $this->processor($callback, $response);
-        }
-    }
 }
