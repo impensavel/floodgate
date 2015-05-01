@@ -188,6 +188,8 @@ class Floodgate implements FloodgateInterface
         if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
             $parameters = $this->generate($endpoint);
 
+            $this->lastConnection = time();
+
             // if differences are found, update parameters
             if ($this->cache[$endpoint] != $parameters) {
                 $this->cache[$endpoint] = $parameters;
