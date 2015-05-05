@@ -154,7 +154,10 @@ class Floodgate implements FloodgateInterface
      */
     protected function register($endpoint, Closure $generator)
     {
+        // store endpoint generator
         $this->generators[$endpoint] = $generator;
+
+        // cache the generated endpoint arguments
         $this->cache[$endpoint] = $generator();
     }
 
@@ -169,20 +172,20 @@ class Floodgate implements FloodgateInterface
     protected function generate($endpoint)
     {
         if (! isset($this->generators[$endpoint])) {
-            throw new FloodgateException('Invalid endpoint: '.$endpoint);
+            throw new FloodgateException('Unregistered endpoint: '.$endpoint);
         }
 
         return $this->generators[$endpoint]();
     }
 
     /**
-     * Are we ready to reconnect?
+     * Trigger a reconnection
      *
      * @access  protected
      * @param   string    $endpoint
      * @return  bool
      */
-    protected function readyToReconnect($endpoint)
+    protected function triggerReconnection($endpoint)
     {
         // check if we're allowed to reconnect
         if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
@@ -190,7 +193,8 @@ class Floodgate implements FloodgateInterface
 
             $this->lastConnection = time();
 
-            // if differences are found, update parameters
+            // trigger a reconnection if differences
+            // exist between new and cached arguments
             if ($this->cache[$endpoint] != $parameters) {
                 $this->cache[$endpoint] = $parameters;
 
@@ -227,15 +231,7 @@ class Floodgate implements FloodgateInterface
         $status = $response->getStatusCode();
 
         if ($status != 200) {
-            switch ($status) {
-                case 420:
-                    $reason = 'Enhance Your Calm';
-                    break;
-
-                default:
-                    $reason = $response->getReasonPhrase();
-                    break;
-            }
+            $reason = ($status == 420) ? 'Enhance Your Calm' : $response->getReasonPhrase();
 
             throw new FloodgateException($reason, $status);
         }
@@ -258,7 +254,7 @@ class Floodgate implements FloodgateInterface
             // pass each line to the callback
             $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
 
-            if ($this->readyToReconnect($endpoint)) {
+            if ($this->triggerReconnection($endpoint)) {
                 break;
             }
         }
@@ -327,24 +323,24 @@ class Floodgate implements FloodgateInterface
     /**
      * {@inheritdoc}
      */
-    public function sample(Closure $callback, Closure $generator)
+    public function sample(Closure $handler, Closure $generator)
     {
-        $this->consume('sample.json', $callback, $generator);
+        $this->consume('sample.json', $handler, $generator);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function filter(Closure $callback, Closure $generator)
+    public function filter(Closure $handler, Closure $generator)
     {
-        $this->consume('filter.json', $callback, $generator, 'POST');
+        $this->consume('filter.json', $handler, $generator, 'POST');
     }
 
     /**
      * {@inheritdoc}
      */
-    public function firehose(Closure $callback, Closure $generator)
+    public function firehose(Closure $handler, Closure $generator)
     {
-        $this->consume('firehose.json', $callback, $generator);
+        $this->consume('firehose.json', $handler, $generator);
     }
 }
