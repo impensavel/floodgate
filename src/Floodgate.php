@@ -148,8 +148,8 @@ class Floodgate implements FloodgateInterface
      * Register a generator
      *
      * @access  protected
-     * @param   string    $endpoint
-     * @param   Closure   $generator
+     * @param   string    $endpoint  Streaming API endpoint
+     * @param   Closure   $generator API endpoint parameter generator
      * @return  void
      */
     protected function register($endpoint, Closure $generator)
@@ -165,7 +165,7 @@ class Floodgate implements FloodgateInterface
      * Generate API endpoint parameters
      *
      * @access  protected
-     * @param   string    $endpoint
+     * @param   string    $endpoint Streaming API endpoint
      * @throws  FloodgateException
      * @return  array
      */
@@ -182,7 +182,7 @@ class Floodgate implements FloodgateInterface
      * Trigger a reconnection
      *
      * @access  protected
-     * @param   string    $endpoint
+     * @param   string    $endpoint Streaming API endpoint
      * @return  bool
      */
     protected function triggerReconnection($endpoint)
@@ -243,16 +243,16 @@ class Floodgate implements FloodgateInterface
      * Stream processor
      *
      * @access  protected
-     * @param   string                             $endpoint
-     * @param   Closure                            $callback
+     * @param   string                             $endpoint Streaming API endpoint
+     * @param   Closure                            $handler  Data handler
      * @param   \GuzzleHttp\Stream\StreamInterface $stream
      * @return  void
      */
-    protected function processor($endpoint, Closure $callback, StreamInterface $stream)
+    protected function processor($endpoint, Closure $handler, StreamInterface $stream)
     {
         while (($line = Utils::readline($stream)) !== false) {
-            // pass each line to the callback
-            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
+            // pass each line to the data handler
+            $handler(json_decode($line, static::MESSAGE_AS_ASSOC));
 
             if ($this->triggerReconnection($endpoint)) {
                 break;
@@ -265,13 +265,13 @@ class Floodgate implements FloodgateInterface
      *
      * @access  protected
      * @param   string  $endpoint  Streaming API endpoint
-     * @param   Closure $callback  Data handler callback
+     * @param   Closure $handler   Data handler
      * @param   Closure $generator API endpoint parameter generator
      * @param   string  $method    HTTP method
      * @throws  FloodgateException
      * @return  void
      */
-    protected function consume($endpoint, Closure $callback, Closure $generator, $method = 'GET')
+    protected function consume($endpoint, Closure $handler, Closure $generator, $method = 'GET')
     {
         $this->register($endpoint, $generator);
 
@@ -281,7 +281,7 @@ class Floodgate implements FloodgateInterface
             // (re)set last connection timestamp
             $this->lastConnection = time();
 
-            $this->processor($endpoint, $callback, $response);
+            $this->processor($endpoint, $handler, $response);
         }
     }
 
