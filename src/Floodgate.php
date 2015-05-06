@@ -45,6 +45,13 @@ class Floodgate implements FloodgateInterface
     const RECONNECTION_ATTEMPTS = 6;
 
     /**
+     * Stall timeout (in seconds)
+     *
+     * @var  int
+     */
+    const STALL_TIMEOUT = 90;
+
+    /**
      * Reconnection back off strategy values
      *
      * @access  protected
@@ -250,13 +257,25 @@ class Floodgate implements FloodgateInterface
      */
     protected function processor($endpoint, Closure $handler, StreamInterface $stream)
     {
+        $stalled = time();
+
         while (($line = Utils::readline($stream)) !== false) {
+            if (empty($line)) {
+                if ((time() - $stalled) > static::STALL_TIMEOUT) {
+                    break;
+                }
+
+                continue;
+            }
+
             // pass each line to the data handler
             $handler(json_decode($line, static::MESSAGE_AS_ASSOC));
 
             if ($this->triggerReconnection($endpoint)) {
                 break;
             }
+
+            $stalled = time();
         }
     }
 
