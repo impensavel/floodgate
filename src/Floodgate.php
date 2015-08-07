@@ -45,6 +45,13 @@ class Floodgate implements FloodgateInterface
     const RECONNECTION_ATTEMPTS = 6;
 
     /**
+     * Stall timeout (in seconds)
+     *
+     * @var  int
+     */
+    const STALL_TIMEOUT = 90;
+
+    /**
      * Reconnection back off strategy values
      *
      * @access  protected
@@ -148,13 +155,16 @@ class Floodgate implements FloodgateInterface
      * Register a generator
      *
      * @access  protected
-     * @param   string    $endpoint
-     * @param   Closure   $generator
+     * @param   string    $endpoint  Streaming API endpoint
+     * @param   Closure   $generator API endpoint parameter generator
      * @return  void
      */
     protected function register($endpoint, Closure $generator)
     {
+        // store endpoint generator
         $this->generators[$endpoint] = $generator;
+
+        // cache the generated endpoint arguments
         $this->cache[$endpoint] = $generator();
     }
 
@@ -162,33 +172,36 @@ class Floodgate implements FloodgateInterface
      * Generate API endpoint parameters
      *
      * @access  protected
-     * @param   string    $endpoint
+     * @param   string    $endpoint Streaming API endpoint
      * @throws  FloodgateException
      * @return  array
      */
     protected function generate($endpoint)
     {
         if (! isset($this->generators[$endpoint])) {
-            throw new FloodgateException('Invalid endpoint: '.$endpoint);
+            throw new FloodgateException('Unregistered endpoint: '.$endpoint);
         }
 
         return $this->generators[$endpoint]();
     }
 
     /**
-     * Are we ready to reconnect?
+     * Trigger a reconnection
      *
      * @access  protected
-     * @param   string    $endpoint
+     * @param   string    $endpoint Streaming API endpoint
      * @return  bool
      */
-    protected function readyToReconnect($endpoint)
+    protected function triggerReconnection($endpoint)
     {
         // check if we're allowed to reconnect
         if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
             $parameters = $this->generate($endpoint);
 
-            // if differences are found, update parameters
+            $this->lastConnection = time();
+
+            // trigger a reconnection if differences
+            // exist between new and cached arguments
             if ($this->cache[$endpoint] != $parameters) {
                 $this->cache[$endpoint] = $parameters;
 
@@ -225,15 +238,7 @@ class Floodgate implements FloodgateInterface
         $status = $response->getStatusCode();
 
         if ($status != 200) {
-            switch ($status) {
-                case 420:
-                    $reason = 'Enhance Your Calm';
-                    break;
-
-                default:
-                    $reason = $response->getReasonPhrase();
-                    break;
-            }
+            $reason = ($status == 420) ? 'Enhance Your Calm' : $response->getReasonPhrase();
 
             throw new FloodgateException($reason, $status);
         }
@@ -245,20 +250,32 @@ class Floodgate implements FloodgateInterface
      * Stream processor
      *
      * @access  protected
-     * @param   string                             $endpoint
-     * @param   Closure                            $callback
+     * @param   string                             $endpoint Streaming API endpoint
+     * @param   Closure                            $handler  Data handler
      * @param   \GuzzleHttp\Stream\StreamInterface $stream
      * @return  void
      */
-    protected function processor($endpoint, Closure $callback, StreamInterface $stream)
+    protected function processor($endpoint, Closure $handler, StreamInterface $stream)
     {
-        while (($line = Utils::readline($stream)) !== false) {
-            // pass each line to the callback
-            $callback(json_decode($line, static::MESSAGE_AS_ASSOC));
+        $stalled = time();
 
-            if ($this->readyToReconnect($endpoint)) {
+        while (($line = Utils::readline($stream)) !== false) {
+            if (empty($line)) {
+                if ((time() - $stalled) > static::STALL_TIMEOUT) {
+                    break;
+                }
+
+                continue;
+            }
+
+            // pass each line to the data handler
+            $handler(json_decode($line, static::MESSAGE_AS_ASSOC));
+
+            if ($this->triggerReconnection($endpoint)) {
                 break;
             }
+
+            $stalled = time();
         }
     }
 
@@ -267,13 +284,13 @@ class Floodgate implements FloodgateInterface
      *
      * @access  protected
      * @param   string  $endpoint  Streaming API endpoint
-     * @param   Closure $callback  Data handler callback
+     * @param   Closure $handler   Data handler
      * @param   Closure $generator API endpoint parameter generator
      * @param   string  $method    HTTP method
      * @throws  FloodgateException
      * @return  void
      */
-    protected function consume($endpoint, Closure $callback, Closure $generator, $method = 'GET')
+    protected function consume($endpoint, Closure $handler, Closure $generator, $method = 'GET')
     {
         $this->register($endpoint, $generator);
 
@@ -283,7 +300,7 @@ class Floodgate implements FloodgateInterface
             // (re)set last connection timestamp
             $this->lastConnection = time();
 
-            $this->processor($endpoint, $callback, $response);
+            $this->processor($endpoint, $handler, $response);
         }
     }
 
@@ -325,24 +342,24 @@ class Floodgate implements FloodgateInterface
     /**
      * {@inheritdoc}
      */
-    public function sample(Closure $callback, Closure $generator)
+    public function sample(Closure $handler, Closure $generator)
     {
-        $this->consume('sample.json', $callback, $generator);
+        $this->consume('sample.json', $handler, $generator);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function filter(Closure $callback, Closure $generator)
+    public function filter(Closure $handler, Closure $generator)
     {
-        $this->consume('filter.json', $callback, $generator, 'POST');
+        $this->consume('filter.json', $handler, $generator, 'POST');
     }
 
     /**
      * {@inheritdoc}
      */
-    public function firehose(Closure $callback, Closure $generator)
+    public function firehose(Closure $handler, Closure $generator)
     {
-        $this->consume('firehose.json', $callback, $generator);
+        $this->consume('firehose.json', $handler, $generator);
     }
 }

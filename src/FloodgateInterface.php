@@ -38,32 +38,32 @@ interface FloodgateInterface
      * Consume Streaming API Sample endpoint
      *
      * @access  public
-     * @param   Closure $callback  Data handler callback
+     * @param   Closure $handler   Data handler
      * @param   Closure $generator API endpoint parameter generator
      * @throws  FloodgateException
      * @return  void
      */
-    public function sample(Closure $callback, Closure $generator);
+    public function sample(Closure $handler, Closure $generator);
 
     /**
      * Consume Streaming API Filter endpoint
      *
      * @access  public
-     * @param   Closure $callback  Data handler callback
+     * @param   Closure $handler   Data handler
      * @param   Closure $generator API endpoint parameter generator
      * @throws  FloodgateException
      * @return  void
      */
-    public function filter(Closure $callback, Closure $generator);
+    public function filter(Closure $handler, Closure $generator);
 
     /**
      * Consume Streaming API Firehose endpoint
      *
      * @access  public
-     * @param   Closure $callback  Data handler callback
+     * @param   Closure $handler   Data handler
      * @param   Closure $generator API endpoint parameter generator
      * @throws  FloodgateException
      * @return  void
      */
-    public function firehose(Closure $callback, Closure $generator);
+    public function firehose(Closure $handler, Closure $generator);
 }
