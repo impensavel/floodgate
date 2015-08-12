@@ -1,76 +1,139 @@
 # Floodgate
-This abstract class implements five of the six methods of the `FloodgateInterface` contract.
+The `Floodgate` class handles all data consuming aspects from the Twitter Streaming API.
 
 ## Usage
-In order to use the library, the abstract `Floodgate` class must be extended and the `getParameters()` method must be implemented.
+This document contains usage examples, along with a brief explanation of available methods and configuration options.
 
-## Implementation
-The `getParameters()` method must return an associative `array`. The key/value pairs being returned should match the **GET** or **POST** parameters expected by the consumer method (`sample()`, `filter()`,`firehose()`) being called.
+## Instantiation
+The easiest way to create a `Floodgate` instance is to use the `create()` method.
 
-[Read](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose) to know what parameters each method/API endpoint supports.
+```php
+$config = [
+    'oauth'     => [
+        'consumer_key'    => 'OADYKJgKogkkYtzdIKLZEq77Z',
+        'consumer_secret' => 'Z0mImnDYzH3Tbe4eyQLQEA0lyzXsWFmmZsQTAYHtBrSBX04bKK',
+        'token'           => '456786512-D4MnYQ3U74wd40zXHRHa495wl00ogOyhJu9iqEhz',
+        'token_secret'    => 'EUyz6MawvBlabLAb2gY6fgyTagtMMYny7GmzKfulGo3Di',
+    ],
+];
+
+$floodgate = Floodgate::create($config);
+```
+
+## Consumer methods
+There are currently three consumer methods available in the class:
+
+- `sample()`
+- `filter()`
+- `firehose()`
+
+All of the above methods share the same signature, which requires two `Closure` type arguments to be passed in.
+
+The first argument is the data handler, while the second one is the API endpoint parameter generator.
+
+### Data handler
+The data handler `Closure` deals with each Twitter message received from the stream.
+
+Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**, which can be a **Tweet** or one of the following message types:
+
+- `delete`
+- `scrub_geo`
+- `limit`
+- `status_withheld`
+- `user_withheld`
+- `disconnect`
+- `warning`
+
+For more information about the listed message types, check the [documentation](https://dev.twitter.com/streaming/overview/messages-types).
+
+By setting the `message_as_array` option value to `true`, Twitter messages will be passed as an associative `array` instead of a **Plain Old PHP Object**.
+
+```php
+$config = [
+    'floodgate' => [
+        'message_as_array' => true,
+    ],
+    'oauth' => [
+        // ...
+    ],
+];
+
+$floodgate = Floodgate::create($config);
+```
+
+Here's an example of how to process Tweets from verified users.
+```php
+$handler = function ($message) 
+{
+    // check if the message being passed is a Tweet
+    // as only Tweets have a created_at property
+    if (isset($message->created_at)) {
+        // check if the Tweet is from a verified User
+        if ($message->user->verified) {
+            // do something with the Tweet
+        }
+    }
+};
+```
+
+### API endpoint parameter generator
+The parameter generator `Closure` must return an associative `array`. The key/value pairs should match the **GET** or **POST** parameters expected by their respective endpoints.
+
+[Check](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose) to know what parameters each API endpoint supports.
 
 ### Example #1
 The following implementation is for use cases that **don't require** the Streaming API parameters to be updated. In this particular case, we want to continuously filter by the `php` keyword.
 
 ```php
-class MyFloodgate extends Floodgate
+// API endpoint parameter generator
+$generator = function ()
 {
-   /**
-    * {@inheritdoc}
-    */
-    public function getParameters()
-    {
-        return [
-            'stall_warnings' => 'true',
-            'track'          => 'php',
-        ];
-    }
+    return [
+        'stall_warnings' => 'true',
+        'track'          => 'php',
+    ];
 }
-
 ```
 
 ### Example #2
 On the other hand, there might be use cases where we need to update parameters on a regular basis (i.e. someone wants to add new keywords to the `track` predicate of a stream being consumed).
 
 ```php
-
 // a Laravel Keyword model
 use App\Keyword;
 
-class MyFloodgate extends Floodgate
+// API endpoint parameter generator
+$generator = function ()
 {
-   /**
-    * {@inheritdoc}
-    */
-    public function getParameters()
-    {
-        // get an array with all the keywords
-        $keywords = Keyword::all()->lists('name');
+    // get an array with all the keywords
+    $keywords = Keyword::lists('name')->all();
 
-        return [
-            'stall_warnings' => 'true',
-            'track'          => $keywords,
-        ];
-    }
+    return [
+        'stall_warnings' => 'true',
+        'track'          => $keywords,
+    ];
 }
-
 ```
 
-In cases like this, reconnections to the Streaming API will be handled automatically by the library. 
+In cases like this, reconnections to the Streaming API will be handled automatically by the library.
 
 To trigger a reconnection, the new and old parameters must be different and the elapsed time from the last (re)connection must be at least 300 seconds (5 minutes).
 
-This delay is enforced to avoid many reconnections to the Streaming API in a short time period, which may get the account rate limited.
+This delay is enforced to avoid reconnections to the Streaming API in a short time period, which may get the account rate limited.
 
-To change the delay value, override the `RECONNECTION_DELAY` constant in your implementation.
+To change the delay, set the `reconnection_delay` option value when creating a `Floodgate` object.
 
 ```php
-class MyFloodgate extends Floodgate
-{
-    // delay reconnections for 10 minutes instead of 5
-    const RECONNECTION_DELAY = 600;
-}
+$config = [
+    'floodgate' => [
+        'reconnection_delay' => 600,
+    ],
+    'oauth' => [
+        // ...
+    ],
+];
 
+$floodgate = Floodgate::create($config);
 ```
 
 ## Reconnections
@@ -83,88 +146,35 @@ A reconnection is triggered when:
 
 In these two last cases, the library will apply a back off strategy, increasing the time between reconnections exponentially.
 
-The default limit for those cases is `6` attempts before throwing a `FloodgateException`, but if needed, the value can be changed by overriding the `RECONNECTION_ATTEMPTS` constant.
+The default limit for those cases is `6` before throwing a `FloodgateException`, but if needed, the number of attempts can be changed by setting the `attempts` option value when creating a `Floodgate` object.
 
 ```php
-class MyFloodgate extends Floodgate
-{
-    // attempt only 3 reconnections before bailing out
-    const RECONNECTION_ATTEMPTS = 3;
-}
-
-```
-
-## Instantiation
-The easiest way to create an instance of a class that extends from the `Floodgate` is to use the `create()` method.
-
-```php
-// Twitter OAuth configuration
 $config = [
-    // ...
+    'retry' => [
+        'attempts' => 3,
+    ],
+    'oauth' => [
+        // ...
+    ],
 ];
 
-// create a MyFloodgate instance
-$stream = MyFloodgate::create($config);
-```
-
-## Consumer methods
-The `sample()`, `filter()` and `firehose()` methods require a `Closure` argument. While consuming a stream, a Twitter message will be made available at each loop/cycle to it.
-
-Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**, which can be a Tweet or one of the following message types:
-
-- `delete`
-- `scrub_geo`
-- `limit`
-- `status_withheld`
-- `user_withheld`
-- `disconnect`
-- `warning`
-
-For more information about the message types listed here, check the [documentation](https://dev.twitter.com/streaming/overview/messages-types).
-
-By setting the `MESSAGE_AS_ASSOC` constant to `true`, Twitter messages will be passed as an associative `array` instead of a **Plain Old PHP Object**.
-
-```php
-class MyFloodgate extends Floodgate
-{
-    // pass Twitter messages as associative arrays
-    const MESSAGE_AS_ASSOC = true;
-}
-
-```
-
-### Handling data
-The `Closure` each consumer method accepts as argument, is responsible for handling data from the stream.
-
-Here's an example of how to save Tweets from verified users.
-```php
-$handler = function ($data) 
-{
-    // check if the message being passed is a Tweet
-    // only Tweets have a created_at property
-    if (isset($data->created_at)) {
-        // check if the Tweet is from a verified User
-        if ($data->user->verified) {
-            // store the Tweet into the database
-        }
-    }
-};
+$floodgate = Floodgate::create($config);
 ```
 
 ### Usage
-Once the `Closure` is implemented, we can start using the consumer methods.
+Once the data handler and the parameter generator are implemented, the consumer methods can be used.
 
 #### Sample
 ```php
-$stream->sample($handler);
+$stream->sample($handler, $generator);
 ```
 
 #### Filter
 ```php
-$stream->filter($handler);
+$stream->filter($handler, $generator);
 ```
 
 #### Firehose
 ```php
-$stream->firehose($handler);
+$stream->firehose($handler, $generator);
 ```
