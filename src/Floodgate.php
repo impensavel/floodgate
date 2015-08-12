@@ -92,11 +92,11 @@ class Floodgate implements FloodgateInterface
         $this->http = $http;
 
         // configuration defaults
-        $config = array_replace($config, [
+        $config = array_replace([
             'reconnection_delay' => 300,
             'stall_timeout'      => 90,
             'message_as_array'   => false,
-        ]);
+        ], $config);
 
         $this->reconnectionDelay = $config['reconnection_delay'];
         $this->stallTimeout = $config['stall_timeout'];
