@@ -78,6 +78,7 @@ $handler = function ($message)
 
 ### API endpoint parameter generator
 The parameter generator `Closure` must return an associative `array`. The key/value pairs should match the **GET** or **POST** parameters expected by their respective endpoints.
+It's signature requires no argument.
 
 [Check](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose) to know what parameters each API endpoint supports.
 
