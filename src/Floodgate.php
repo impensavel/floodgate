@@ -120,7 +120,7 @@ class Floodgate implements FloodgateInterface
                 'base_url' => 'https://stream.twitter.com/1.1/statuses/',
                 'defaults' => [
                     'headers' => [
-                        'User-Agent' => 'Floodgate/1.1',
+                        'User-Agent' => 'Floodgate/2.0',
                     ],
                 ],
             ],
