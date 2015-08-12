@@ -1,7 +1,7 @@
 {
     "name": "impensavel/floodgate",
     "type": "library",
-    "description": "A PHP library for consuming the Twitter Streaming API v1.1 via OAuth",
+    "description": "A PHP library for consuming data from the Twitter Streaming API v1.1 via OAuth",
     "keywords": [
         "twitter",
         "oauth",

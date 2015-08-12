@@ -2,7 +2,7 @@
 [![Latest Stable Version](https://poser.pugx.org/impensavel/floodgate/v/stable.svg)](https://packagist.org/packages/impensavel/floodgate)
 [![Build Status](https://travis-ci.org/impensavel/floodgate.svg?branch=master)](https://travis-ci.org/impensavel/floodgate)
 
-A PHP library for consuming the [Twitter](http://www.twitter.com) Streaming API v1.1 via OAuth.
+A PHP library for consuming data from the [Twitter](http://www.twitter.com) Streaming API v1.1 via OAuth.
 
 This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
 
