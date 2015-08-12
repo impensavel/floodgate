@@ -95,12 +95,12 @@ class Floodgate implements FloodgateInterface
         $config = array_replace($config, [
             'reconnection_delay' => 300,
             'stall_timeout'      => 90,
-            'message_as_assoc'   => false,
+            'message_as_array'   => false,
         ]);
 
         $this->reconnectionDelay = $config['reconnection_delay'];
         $this->stallTimeout = $config['stall_timeout'];
-        $this->messageAsArray = $config['message_as_assoc'];
+        $this->messageAsArray = $config['message_as_array'];
     }
 
     /**
