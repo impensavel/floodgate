@@ -24,50 +24,28 @@ use GuzzleHttp\Subscriber\Retry\RetrySubscriber;
 class Floodgate implements FloodgateInterface
 {
     /**
-     * Twitter Streaming API URL
-     *
-     * @var  string
-     */
-    const STREAM_URL = 'https://stream.twitter.com/1.1/statuses/';
-
-    /**
      * Reconnection delay (in seconds)
      *
-     * @var  int
+     * @access  protected
+     * @var     int
      */
-    const RECONNECTION_DELAY = 300;
-
-    /**
-     * Reconnection attempts
-     *
-     * @var  int
-     */
-    const RECONNECTION_ATTEMPTS = 6;
+    protected $reconnectionDelay = 300;
 
     /**
      * Stall timeout (in seconds)
      *
-     * @var  int
-     */
-    const STALL_TIMEOUT = 90;
-
-    /**
-     * Reconnection back off strategy values
-     *
      * @access  protected
-     * @var     array
+     * @var     int
      */
-    protected static $backOff = [
-        420 => 60, // Enhance Your Calm
-        503 => 5,  // Service Unavailable
-    ];
+    protected $stallTimeout = 90;
 
     /**
      * Twitter message as associative array?
      *
-     * @var  bool
+     * @access  protected
+     * @var     bool
      */
-    const MESSAGE_AS_ASSOC = false;
+    protected $messageAsArray = false;
 
     /**
      * Last connection timestamp
@@ -94,7 +72,7 @@ class Floodgate implements FloodgateInterface
     protected $cache = [];
 
     /**
-     * HTTP Client object
+     * HTTP Client
      *
      * @access  protected
      * @var     \GuzzleHttp\Client
@@ -105,54 +83,83 @@ class Floodgate implements FloodgateInterface
      * Floodgate constructor
      *
      * @access  public
-     * @param   \GuzzleHttp\Client                           $http
-     * @param   \GuzzleHttp\Subscriber\Oauth\Oauth1          $oauth
-     * @param   \GuzzleHttp\Subscriber\Retry\RetrySubscriber $retry
+     * @param   \GuzzleHttp\Client $http   HTTP client
+     * @param   array              $config Floodgate configuration
      * @return  Floodgate
      */
-    public function __construct(Client $http, Oauth1 $oauth, RetrySubscriber $retry)
+    public function __construct(Client $http, array $config = [])
     {
         $this->http = $http;
 
-        $this->http->getEmitter()->attach($oauth);
-        $this->http->getEmitter()->attach($retry);
+        // configuration defaults
+        $config = array_replace($config, [
+            'reconnection_delay' => 300,
+            'stall_timeout'      => 90,
+            'message_as_assoc'   => false,
+        ]);
+
+        $this->reconnectionDelay = $config['reconnection_delay'];
+        $this->stallTimeout = $config['stall_timeout'];
+        $this->messageAsArray = $config['message_as_assoc'];
     }
 
     /**
-     * Create a Floodgate
+     * Create a Floodgate object
      *
      * @static
      * @access  public
-     * @param   array  $config Twitter OAuth configuration
+     * @param   array  $config Guzzle configurations
      * @return  Floodgate
      */
-    public static function create(array $config)
+    public static function create(array $config = [])
     {
-        $http = new Client([
-            'base_url' => static::STREAM_URL,
-            'defaults' => [
-                'exceptions' => false,
-                'stream'     => true,
-                'auth'       => 'oauth',
-                'headers'    => [
-                    'User-Agent' => 'Floodgate/1.0',
+        // configuration defaults
+        $config = array_replace_recursive([
+            'floodgate' => [],
+            'http'      => [
+                'base_url' => 'https://stream.twitter.com/1.1/statuses/',
+                'defaults' => [
+                    'headers' => [
+                        'User-Agent' => 'Floodgate/1.1',
+                    ],
+                ],
+            ],
+            'oauth'     => [],
+            'retry'     => [
+                'attempts' => 6,
+                'back_off' => [
+                    420 => 60, // Enhance Your Calm
+                    503 => 5,  // Service Unavailable
+                ],
+            ],
+        ], $config, [
+            'http' => [
+                'defaults' => [
+                    'exceptions' => false,
+                    'stream'     => true,
+                    'auth'       => 'oauth',
                 ],
             ],
         ]);
 
-        $oauth = new Oauth1($config);
+        $http = new Client($config['http']);
+
+        $oauth = new Oauth1($config['oauth']);
 
         $retry = new RetrySubscriber([
-            'filter' => static::applyBackOffStrategy(),
-            'delay'  => static::backOffStrategyDelay(),
-            'max'    => static::RECONNECTION_ATTEMPTS,
+            'filter' => static::applyBackOffStrategy($config['retry']['back_off']),
+            'delay'  => static::backOffStrategyDelay($config['retry']['back_off']),
+            'max'    => $config['retry']['attempts'],
         ]);
 
-        return new static($http, $oauth, $retry);
+        $http->getEmitter()->attach($oauth);
+        $http->getEmitter()->attach($retry);
+
+        return new static($http, $config['floodgate']);
     }
 
     /**
-     * Register a generator
+     * Register an API endpoint generator
      *
      * @access  protected
      * @param   string    $endpoint  Streaming API endpoint
@@ -165,7 +172,7 @@ class Floodgate implements FloodgateInterface
         $this->generators[$endpoint] = $generator;
 
         // cache the generated endpoint arguments
-        $this->cache[$endpoint] = $generator();
+        $this->cache[$endpoint] = call_user_func($generator);
     }
 
     /**
@@ -182,7 +189,7 @@ class Floodgate implements FloodgateInterface
             throw new FloodgateException('Unregistered endpoint: '.$endpoint);
         }
 
-        return $this->generators[$endpoint]();
+        return call_user_func($this->generators[$endpoint]);
     }
 
     /**
@@ -195,7 +202,7 @@ class Floodgate implements FloodgateInterface
     protected function triggerReconnection($endpoint)
     {
         // check if we're allowed to reconnect
-        if ((time() - $this->lastConnection) > static::RECONNECTION_DELAY) {
+        if ((time() - $this->lastConnection) > $this->reconnectionDelay) {
             $parameters = $this->generate($endpoint);
 
             $this->lastConnection = time();
@@ -261,7 +268,7 @@ class Floodgate implements FloodgateInterface
 
         while (($line = Utils::readline($stream)) !== false) {
             if (empty($line)) {
-                if ((time() - $stalled) > static::STALL_TIMEOUT) {
+                if ((time() - $stalled) > $this->stallTimeout) {
                     break;
                 }
 
@@ -269,7 +276,7 @@ class Floodgate implements FloodgateInterface
             }
 
             // pass each line to the data handler
-            $handler(json_decode($line, static::MESSAGE_AS_ASSOC));
+            $handler(json_decode($line, $this->messageAsArray));
 
             if ($this->triggerReconnection($endpoint)) {
                 break;
@@ -307,14 +314,14 @@ class Floodgate implements FloodgateInterface
     /**
      * {@inheritdoc}
      */
-    public static function applyBackOffStrategy()
+    public static function applyBackOffStrategy(array $backOff)
     {
-        return function ($retries, AbstractTransferEvent $event)
+        return function ($retries, AbstractTransferEvent $event) use ($backOff)
         {
             if ($event->hasResponse()) {
                 $status = $event->getResponse()->getStatusCode();
 
-                return array_key_exists($status, static::$backOff);
+                return array_key_exists($status, $backOff);
             }
 
             return false;
@@ -324,15 +331,15 @@ class Floodgate implements FloodgateInterface
     /**
      * {@inheritdoc}
      */
-    public static function backOffStrategyDelay()
+    public static function backOffStrategyDelay(array $backOff)
     {
-        return function ($retries, AbstractTransferEvent $event)
+        return function ($retries, AbstractTransferEvent $event) use ($backOff)
         {
             if ($event->hasResponse()) {
                 $status = $event->getResponse()->getStatusCode();
 
                 // back off exponentially
-                return static::$backOff[$status] * pow(2, $retries);
+                return $backOff[$status] * pow(2, $retries);
             }
 
             return 0;
