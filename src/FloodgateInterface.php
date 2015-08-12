@@ -21,18 +21,20 @@ interface FloodgateInterface
      *
      * @static
      * @access  public
+     * @param   array  $backOff Reconnection back off strategy values
      * @return  Closure
      */
-    public static function applyBackOffStrategy();
+    public static function applyBackOffStrategy(array $backOff);
 
     /**
      * Get the back off strategy delay
      *
      * @static
      * @access  public
+     * @param   array  $backOff Reconnection back off strategy values
      * @return  Closure
      */
-    public static function backOffStrategyDelay();
+    public static function backOffStrategyDelay(array $backOff);
 
     /**
      * Consume Streaming API Sample endpoint
