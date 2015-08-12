@@ -32,7 +32,7 @@ All of the above methods share the same signature, which requires two `Closure` 
 The first argument is the data handler, while the second one is the API endpoint parameter generator.
 
 ### Data handler
-The data handler `Closure` takes one argument, the `$message` object. It's purpose is to deal with each Twitter message received from the stream.
+The data handler `Closure` deals with each Twitter message received from the stream. It's signature requires one argument (`$message`), which will hold the Twitter message.
 
 Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**, which can be a **Tweet** or one of the following message types:
 
