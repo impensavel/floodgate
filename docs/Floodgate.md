@@ -115,7 +115,7 @@ $generator = function ()
     ];
 }
 ```
-**Note:** when passing an array as a value (like `$keywords` in the above example), the library will automatically convert it into a comma separated string. 
+>**TIP**: By passing an `array` as a value (like `$keywords` in Example #2), the library will convert it into a comma separated string.
 
 In cases like this, reconnections to the Streaming API will be handled automatically by the library.
 
