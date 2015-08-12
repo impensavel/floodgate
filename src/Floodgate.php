@@ -18,6 +18,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Event\AbstractTransferEvent;
 use GuzzleHttp\Stream\StreamInterface;
 use GuzzleHttp\Stream\Utils;
+use GuzzleHttp\Subscriber\Mock;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
 use GuzzleHttp\Subscriber\Retry\RetrySubscriber;
 
@@ -108,7 +109,7 @@ class Floodgate implements FloodgateInterface
      *
      * @static
      * @access  public
-     * @param   array  $config Guzzle configurations
+     * @param   array  $config Configurations
      * @return  Floodgate
      */
     public static function create(array $config = [])
@@ -132,6 +133,7 @@ class Floodgate implements FloodgateInterface
                     503 => 5,  // Service Unavailable
                 ],
             ],
+            'mock'      => null,
         ], $config, [
             'http' => [
                 'defaults' => [
@@ -154,6 +156,11 @@ class Floodgate implements FloodgateInterface
 
         $http->getEmitter()->attach($oauth);
         $http->getEmitter()->attach($retry);
+
+        // make testing easy
+        if ($config['mock'] instanceof Mock) {
+            $http->getEmitter()->attach($config['mock']);
+        }
 
         return new static($http, $config['floodgate']);
     }
