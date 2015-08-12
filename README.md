@@ -13,7 +13,8 @@ This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
 ## Requirements
 * [PHP](http://www.php.net) 5.4+
 * [Guzzle](https://packagist.org/packages/guzzlehttp/guzzle)
-* [Guzzle Oauth](https://packagist.org/packages/guzzlehttp/oauth-subscriber)
+* [Guzzle Oauth Subscriber](https://packagist.org/packages/guzzlehttp/oauth-subscriber)
+* [Guzzle Retry Subscriber](https://packagist.org/packages/guzzlehttp/retry-subscriber)
 
 ## Installation
 ``` bash
