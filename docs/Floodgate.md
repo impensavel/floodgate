@@ -1,5 +1,5 @@
 # Floodgate
-The `Floodgate` class handles all data consuming aspects from the Twitter Streaming API.
+The `Floodgate` class handles all data consuming aspects for the Twitter Streaming API.
 
 ## Usage
 This document contains usage examples, along with a brief explanation of available methods and configuration options.
@@ -32,7 +32,7 @@ All of the above methods share the same signature, which requires two `Closure` 
 The first argument is the data handler, while the second one is the API endpoint parameter generator.
 
 ### Data handler
-The data handler `Closure` deals with each Twitter message received from the stream.
+The data handler `Closure` takes one argument, the `$message` object. It's purpose is to deal with each Twitter message received from the stream.
 
 Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**, which can be a **Tweet** or one of the following message types:
 
@@ -99,7 +99,7 @@ $generator = function ()
 On the other hand, there might be use cases where we need to update parameters on a regular basis (i.e. someone wants to add new keywords to the `track` predicate of a stream being consumed).
 
 ```php
-// a Laravel Keyword model
+// a Laravel 5.1 model
 use App\Keyword;
 
 // API endpoint parameter generator
@@ -114,6 +114,7 @@ $generator = function ()
     ];
 }
 ```
+**Note:** when passing an array as a value (like `$keywords` in the above example), the library will automatically convert it into a comma separated string. 
 
 In cases like this, reconnections to the Streaming API will be handled automatically by the library.
 
