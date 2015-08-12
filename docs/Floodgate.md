@@ -115,7 +115,6 @@ $generator = function ()
     ];
 }
 ```
->**TIP**: By passing an `array` as a value (like `$keywords` in Example #2), the library will convert it into a comma separated string.
 
 In cases like this, reconnections to the Streaming API will be handled automatically by the library.
 
@@ -137,6 +136,8 @@ $config = [
 
 $floodgate = Floodgate::create($config);
 ```
+
+>**TIP**: By passing an `array` as a value (like `$keywords` in Example #2), the library will convert it into a comma separated string.
 
 ## Reconnections
 A reconnection is triggered when:
