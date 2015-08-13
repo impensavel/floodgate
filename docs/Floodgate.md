@@ -21,11 +21,16 @@ $floodgate = Floodgate::create($config);
 ```
 
 ## Consumer methods
-There are currently three consumer methods available in the class:
+There are currently five consumer methods available in the class:
 
-- `sample()`
-- `filter()`
-- `firehose()`
+- Public Stream:
+    - `sample()`
+    - `filter()`
+    - `firehose()`
+- User Stream:
+    - `user()`
+- Site Stream:
+    - `site()`
 
 All of the above methods share the same signature, which requires two `Closure` type arguments to be passed in.
 
@@ -34,19 +39,15 @@ The first argument is the data handler, while the second one is the API endpoint
 ### Data handler
 The data handler `Closure` deals with each Twitter message received from the stream. It's signature requires one argument (`$message`), which will hold the Twitter message.
 
-Twitter messages can either be `null` (keep-alive) or **Plain Old PHP Objects**, which can be a **Tweet** or one of the following message types:
+Depending on the stream type (Public, User or Site), message types will differ.
 
-- `delete`
-- `scrub_geo`
-- `limit`
-- `status_withheld`
-- `user_withheld`
-- `disconnect`
-- `warning`
+- [Public Stream](https://dev.twitter.com/streaming/overview/messages-types#public_stream_messages)
+- [User Stream](https://dev.twitter.com/streaming/overview/messages-types#user_stream_messsages)
+- [Site Stream](https://dev.twitter.com/streaming/overview/messages-types#site_stream_messages)
 
-For more information about the listed message types, check the [documentation](https://dev.twitter.com/streaming/overview/messages-types).
+By default, most Twitter messages will be **Plain Old PHP Objects** or a `null` in case of a keep alive.
 
-By setting the `message_as_array` option value to `true`, Twitter messages will be passed as an associative `array` instead of a **Plain Old PHP Object**.
+When the `message_as_array` option value is `true`, Twitter messages will be passed as associative arrays instead of **Plain Old PHP Objects**.
 
 ```php
 $config = [
@@ -180,4 +181,14 @@ $stream->filter($handler, $generator);
 #### Firehose
 ```php
 $stream->firehose($handler, $generator);
+```
+
+#### User
+```php
+$stream->user($handler, $generator);
+```
+
+#### Site
+```php
+$stream->site($handler, $generator);
 ```

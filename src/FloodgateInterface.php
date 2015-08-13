@@ -37,7 +37,7 @@ interface FloodgateInterface
     public static function backOffStrategyDelay(array $backOff);
 
     /**
-     * Consume Streaming API Sample endpoint
+     * Public Stream - Sample endpoint consumer
      *
      * @access  public
      * @param   Closure $handler   Data handler
@@ -48,7 +48,7 @@ interface FloodgateInterface
     public function sample(Closure $handler, Closure $generator);
 
     /**
-     * Consume Streaming API Filter endpoint
+     * Public Stream - Filter endpoint consumer
      *
      * @access  public
      * @param   Closure $handler   Data handler
@@ -59,7 +59,7 @@ interface FloodgateInterface
     public function filter(Closure $handler, Closure $generator);
 
     /**
-     * Consume Streaming API Firehose endpoint
+     * Public Stream - Firehose endpoint consumer
      *
      * @access  public
      * @param   Closure $handler   Data handler
@@ -68,4 +68,26 @@ interface FloodgateInterface
      * @return  void
      */
     public function firehose(Closure $handler, Closure $generator);
+
+    /**
+     * User Stream - User endpoint consumer
+     *
+     * @access  public
+     * @param   Closure $handler   Data handler
+     * @param   Closure $generator API endpoint parameter generator
+     * @throws  FloodgateException
+     * @return  void
+     */
+    public function user(Closure $handler, Closure $generator);
+
+    /**
+     * Site Stream - Site endpoint consumer
+     *
+     * @access  public
+     * @param   Closure $handler   Data handler
+     * @param   Closure $generator API endpoint parameter generator
+     * @throws  FloodgateException
+     * @return  void
+     */
+    public function site(Closure $handler, Closure $generator);
 }

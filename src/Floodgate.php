@@ -118,7 +118,6 @@ class Floodgate implements FloodgateInterface
         $config = array_replace_recursive([
             'floodgate' => [],
             'http'      => [
-                'base_url' => 'https://stream.twitter.com/1.1/statuses/',
                 'defaults' => [
                     'headers' => [
                         'User-Agent' => 'Floodgate/2.0',
@@ -358,7 +357,7 @@ class Floodgate implements FloodgateInterface
      */
     public function sample(Closure $handler, Closure $generator)
     {
-        $this->consume('sample.json', $handler, $generator);
+        $this->consume('https://stream.twitter.com/1.1/statuses/sample.json', $handler, $generator);
     }
 
     /**
@@ -366,7 +365,7 @@ class Floodgate implements FloodgateInterface
      */
     public function filter(Closure $handler, Closure $generator)
     {
-        $this->consume('filter.json', $handler, $generator, 'POST');
+        $this->consume('https://stream.twitter.com/1.1/statuses/filter.json', $handler, $generator, 'POST');
     }
 
     /**
@@ -374,6 +373,22 @@ class Floodgate implements FloodgateInterface
      */
     public function firehose(Closure $handler, Closure $generator)
     {
-        $this->consume('firehose.json', $handler, $generator);
+        $this->consume('https://stream.twitter.com/1.1/statuses/firehose.json', $handler, $generator);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function user(Closure $handler, Closure $generator)
+    {
+        $this->consume('https://userstream.twitter.com/1.1/user.json', $handler, $generator);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function site(Closure $handler, Closure $generator)
+    {
+        $this->consume('https://sitestream.twitter.com/1.1/site.json', $handler, $generator);
     }
 }
