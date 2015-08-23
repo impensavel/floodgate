@@ -69,8 +69,10 @@ try {
 - [Floodgate](docs/Floodgate.md)
 
 ## Twitter Documentation
-- [Public Streams](https://dev.twitter.com/streaming/public)
 - [Connecting to a streaming endpoint](https://dev.twitter.com/streaming/overview/connecting)
+- [Public Streams](https://dev.twitter.com/streaming/public)
+- [User Streams](https://dev.twitter.com/streaming/userstreams)
+- [Site Streams](https://dev.twitter.com/streaming/sitestreams)
 - [Message Types](https://dev.twitter.com/streaming/overview/messages-types)
 
 ## License

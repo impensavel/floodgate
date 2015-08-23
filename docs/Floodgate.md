@@ -45,9 +45,9 @@ Depending on the stream type (Public, User or Site), message types will differ.
 - [User Stream](https://dev.twitter.com/streaming/overview/messages-types#user_stream_messsages)
 - [Site Stream](https://dev.twitter.com/streaming/overview/messages-types#site_stream_messages)
 
-By default, most Twitter messages will be **Plain Old PHP Objects** or a `null` in case of a keep alive.
+By default, most Twitter messages will be passed in as **Plain Old PHP Objects** or `null` in case of a keep alive.
 
-When the `message_as_array` option value is `true`, Twitter messages will be passed as associative arrays instead of **Plain Old PHP Objects**.
+When the `message_as_array` option value is set to `true`, Twitter messages will be passed in as associative arrays instead.
 
 ```php
 $config = [
@@ -81,7 +81,7 @@ $handler = function ($message)
 The parameter generator `Closure` must return an associative `array`. The key/value pairs should match the **GET** or **POST** parameters expected by their respective endpoints.
 It's signature requires no argument.
 
-[Check](https://dev.twitter.com/streaming/reference/get/statuses/sample) [the](https://dev.twitter.com/streaming/reference/post/statuses/filter) [documentation](https://dev.twitter.com/streaming/reference/get/statuses/firehose) to know what parameters each API endpoint supports.
+Check each API endpoint ([sample](https://dev.twitter.com/streaming/reference/get/statuses/sample), [filter](https://dev.twitter.com/streaming/reference/post/statuses/filter), [firehose](https://dev.twitter.com/streaming/reference/get/statuses/firehose), [user](https://dev.twitter.com/streaming/reference/get/user), [site](https://dev.twitter.com/streaming/reference/get/site)) documentation, to know what parameters are supported.
 
 ### Example #1
 The following implementation is for use cases that **don't require** the Streaming API parameters to be updated. In this particular case, we want to continuously filter by the `php` keyword.
@@ -166,7 +166,7 @@ $floodgate = Floodgate::create($config);
 ```
 
 ### Usage
-Once the data handler and the parameter generator are implemented, the consumer methods can be used.
+Once the data handler and the parameter generator are implemented, the consumer methods can be executed.
 
 #### Sample
 ```php
