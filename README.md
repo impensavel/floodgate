@@ -18,7 +18,7 @@ This library aims for [PSR-1][], [PSR-2][] and [PSR-4][] standards compliance.
 
 ## Installation
 ``` bash
-composer require "impensavel/floodgate:~2.0"
+composer require "impensavel/floodgate"
 ```
 
 ## Basic usage example
