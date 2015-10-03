@@ -1,3 +1,8 @@
+# Deprecation notice
+Please note that this is an **old** and **unsupported** version.
+
+Use [**version 2.x**](https://github.com/impensavel/floodgate/tree/2.0) instead!
+
 # Floodgate
 A PHP library that makes consuming the [Twitter](http://www.twitter.com) Streaming API, straightforward.
 
